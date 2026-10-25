@@ -4,8 +4,6 @@ EventPass handles registration, tickets, and door check-in for in-person events.
 
 ## What it does
 
-EventPass covers the full door workflow for small to mid-size events.
-
 - Organizers create events with capacity and check-in windows.
 - Organizers build a custom registration form with fields and choices.
 - Guests register through a public link and confirm by email.
@@ -17,26 +15,22 @@ EventPass covers the full door workflow for small to mid-size events.
 
 ## How the door flow works
 
-The flow has four stages.
-
 1. Set up the event with capacity, times, form, and door team.
 2. Register guests by link and send each guest a ticket by email.
 3. Load the guest list onto the scanner phone before doors open.
 4. Scan each ticket and admit the guest with one clear answer.
 
-Unusual cases show plain language. Repeats, wrong doors, and canceled tickets each get their own message.
+The scanner shows distinct messages for repeat scans, tickets for another event, and canceled tickets.
 
 ## How offline mode works
 
-The scanner is a PWA built with Serwist. The guest list and scan queue live in IndexedDB through Dexie. A scan with a signal settles at once. A scan without a signal stays on the phone as unconfirmed. The same phone catches a repeat scan at once. Separate phones reconcile after they reconnect. Conflicts stay visible until staff resolve them.
+The scanner is a PWA built with Serwist. Dexie stores the guest list and scan queue in IndexedDB. Online scans go to the server for confirmation. Offline scans stay on the phone as unconfirmed. The same phone detects repeat scans locally. Separate phones reconcile their scans after reconnecting. Conflicts stay visible until staff resolve them.
 
 ## Ticket security
 
 Each ticket carries an ECDSA signature. The private key signs at issue time. The public keys verify at scan time. Key rotation uses the `TICKET_SIGNING_KEY_ID` and `TICKET_PUBLIC_KEYS_JSON` pair. Bearer ticket paths use `no-referrer` and `no-store` headers. The paths are `/tickets/[token]`, `/offers/[token]`, `/staff-invitations/[token]`, and `/e/[slug]/verify`.
 
 ## Stack
-
-The app uses the following tools.
 
 - `next` 16.3.6 with the App Router and `react` 19.3.0
 - `drizzle-orm` 0.45.2 with Postgres on Neon through `@neondatabase/serverless`
@@ -48,11 +42,11 @@ The app uses the following tools.
 - `tailwindcss` 4 with `@base-ui/react` 1.6.0 and `@tabler/icons-react` 3.45.0
 - `zod` 4.4.3 for input validation
 
-Auth runs on email OTP. There are no passwords. Platform admins are set by email allowlist.
+Email OTP handles sign-in without passwords. An email allowlist controls platform administration.
 
 ## Project structure
 
-The repo follows feature folders over the App Router.
+Routes live in `app`. Domain logic lives in `features`.
 
 - `app` holds routes, layouts, and API handlers.
 - `app/scanner` holds the volunteer scanning client.
@@ -72,8 +66,6 @@ The repo follows feature folders over the App Router.
 ## Run it locally
 
 You need Node 24, Docker, and npm. The repo pins Node 24 in `engines`.
-
-Follow these steps in order.
 
 1. Install dependencies with `npm install`.
 2. Start local Postgres with `docker compose up -d`.
@@ -105,8 +97,6 @@ Set the following values in `.env.local`.
 
 ## Scripts
 
-Use the following commands.
-
 | Command | Action |
 | ------- | ------ |
 | `npm run dev` | Start the dev server with webpack |
@@ -120,4 +110,4 @@ Use the following commands.
 
 ## Notes for reviewers
 
-I built this to show full stack product work. The hard parts are the door states and the offline sync. Online scans settle at once. Offline scans stay marked until they land. Reconciliation never hides a conflict. The audit trail keeps who changed what and why. If you run it, try the demo, kill the network, scan twice, and reconnect.
+To check the offline path, load the guest list, disconnect the network, scan the same ticket twice, and reconnect. The phone should detect the repeat locally. Offline scans remain provisional until the server reconciles them. Conflicts stay visible, and corrections record who changed the check-in and why.
