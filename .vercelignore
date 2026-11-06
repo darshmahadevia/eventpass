@@ -1,0 +1,10 @@
+.git
+.next
+.audit
+node_modules
+.env*
+!.env.example
+.DS_Store
+*.tsbuildinfo
+public/sw.js
+public/sw.js.map

@@ -1,0 +1,294 @@
+/* Landing-only styling: the things utilities cannot say cleanly (ticket masks,
+   the flood, the conveyor). Loaded by app/page.tsx, so the product never pays
+   for it. */
+
+.type-stage {
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+/* Bound to height as well as width, so a short laptop keeps the line in view. */
+.type-stage {
+  font-size: min(9.6vw, 17svh);
+  line-height: 1;
+}
+
+@media (max-width: 639px) {
+  .type-stage {
+    font-size: 15vw;
+    line-height: 1.02;
+  }
+}
+
+/* The stage ---------------------------------------------------------------- */
+
+.door-stage {
+  --gate: 68%;
+  --ticket-w: 16.5rem;
+  --ticket-h: 8.5rem;
+  --ticket-gap: 1rem;
+  --stop: cubic-bezier(0.65, 0, 0.2, 1);
+}
+
+@media (max-width: 1023px) {
+  .door-stage {
+    --gate: 50%;
+    --ticket-w: 13.5rem;
+    --ticket-h: 7rem;
+    --ticket-gap: 0.75rem;
+  }
+}
+
+/* A short laptop still has to show the whole line. */
+@media (min-width: 1024px) and (max-height: 780px) {
+  .door-stage {
+    --ticket-h: 6.5rem;
+  }
+
+  .type-stage {
+    font-size: min(9.6vw, 15svh);
+  }
+}
+
+/* A scan's colour spreads from the gate, so the eye is told where it came from. */
+.door-flood {
+  animation: door-flood 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes door-flood {
+  from {
+    clip-path: circle(0 at var(--gate) 100%);
+  }
+  to {
+    clip-path: circle(150vmax at var(--gate) 100%);
+  }
+}
+
+.door-track {
+  position: relative;
+  height: calc(var(--ticket-h) + 2.5rem);
+}
+
+.door-ticket {
+  --seam: 72%;
+  position: absolute;
+  top: 1.25rem;
+  left: var(--gate);
+  width: var(--ticket-w);
+  height: var(--ticket-h);
+  margin-left: calc(var(--ticket-w) / -2);
+  transform: translateX(calc(var(--slot) * (var(--ticket-w) + var(--ticket-gap))));
+  transition: transform 0.7s var(--stop);
+  will-change: transform;
+}
+
+.ticket-paper {
+  background: var(--poster-paper);
+  color: var(--poster-ink);
+  border-radius: 0.625rem;
+  -webkit-mask:
+    radial-gradient(circle 0.5rem at var(--seam) 0, #0000 97%, #000),
+    radial-gradient(circle 0.5rem at var(--seam) 100%, #0000 97%, #000);
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(circle 0.5rem at var(--seam) 0, #0000 97%, #000),
+    radial-gradient(circle 0.5rem at var(--seam) 100%, #0000 97%, #000);
+  mask-composite: intersect;
+}
+
+/* Rubber on paper: it lands, it does not fade in. */
+.door-stamp {
+  font-weight: 800;
+  transform: rotate(-9deg);
+  animation: door-stamp 0.22s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+
+@keyframes door-stamp {
+  from {
+    opacity: 0;
+    transform: rotate(-9deg) scale(1.7);
+  }
+}
+
+.door-gate {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--gate);
+  width: calc(var(--ticket-w) + 1.5rem);
+  transform: translateX(-50%);
+  pointer-events: none;
+  background:
+    linear-gradient(var(--poster-ink) 0 0) 0 0 / 1.75rem 3px,
+    linear-gradient(var(--poster-ink) 0 0) 0 0 / 3px 1.75rem,
+    linear-gradient(var(--poster-ink) 0 0) 100% 0 / 1.75rem 3px,
+    linear-gradient(var(--poster-ink) 0 0) 100% 0 / 3px 1.75rem,
+    linear-gradient(var(--poster-ink) 0 0) 0 100% / 1.75rem 3px,
+    linear-gradient(var(--poster-ink) 0 0) 0 100% / 3px 1.75rem,
+    linear-gradient(var(--poster-ink) 0 0) 100% 100% / 1.75rem 3px,
+    linear-gradient(var(--poster-ink) 0 0) 100% 100% / 3px 1.75rem;
+  background-repeat: no-repeat;
+}
+
+.door-beam {
+  position: absolute;
+  inset-block: 0.5rem;
+  left: 0;
+  width: 3px;
+  background: var(--poster-ink);
+  animation: door-beam 0.42s ease-in-out both;
+}
+
+@keyframes door-beam {
+  from {
+    left: 0.5rem;
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  to {
+    left: calc(100% - 0.5rem);
+    opacity: 0;
+  }
+}
+
+/* A flip of the switch has to feel like a physical switch. */
+.wifi-switch-thumb {
+  transition: transform var(--duration-fast) var(--ease-smooth-out);
+}
+
+[aria-checked="true"] > * > .wifi-switch-thumb {
+  transform: translateX(1.25rem);
+}
+
+.door-meter {
+  transform-origin: left;
+  transition: transform 0.5s var(--ease-smooth-out);
+}
+
+/* Phone -------------------------------------------------------------------- */
+
+.phone-frame {
+  border: 0.5rem solid var(--poster-ink);
+  border-radius: 2.5rem;
+  background: var(--poster-ink);
+  overflow: hidden;
+  width: min(100%, 20rem);
+}
+
+.phone-frame [data-slot="scan-outcome"] {
+  min-height: 33rem;
+  padding-inline: 1.25rem;
+  justify-content: flex-start;
+  padding-block: 3.5rem 2rem;
+}
+
+/* The frame is 320px wide, not a full door screen. */
+.phone-frame .type-door {
+  font-size: 2.75rem;
+}
+
+.phone-frame [data-slot="scan-guest"] {
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+
+.phone-frame [data-slot="scan-detail"] {
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+/* Answer picker ------------------------------------------------------------ */
+
+.answer-tab {
+  transition: color var(--duration-quick);
+}
+
+/* FAQ: native exclusive <details>, animated where the browser can. ---------- */
+
+.faq-item::details-content {
+  block-size: 0;
+  overflow: clip;
+  transition:
+    block-size var(--duration-medium) var(--ease-smooth-out),
+    content-visibility var(--duration-medium) allow-discrete;
+}
+
+.faq-item[open]::details-content {
+  block-size: auto;
+}
+
+.faq-list {
+  interpolate-size: allow-keywords;
+}
+
+.faq-item > summary {
+  list-style: none;
+}
+
+.faq-item > summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-plus {
+  transition: transform var(--duration-fast) var(--ease-smooth-out);
+}
+
+.faq-item[open] .faq-plus {
+  transform: rotate(45deg);
+}
+
+/* Closing ticket ----------------------------------------------------------- */
+
+.closing-ticket {
+  --seam: 70%;
+  --notch: 1rem;
+  background: var(--poster-paper);
+  color: var(--poster-ink);
+  border-radius: 1.25rem;
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at var(--seam) 0, #0000 97%, #000),
+    radial-gradient(circle var(--notch) at var(--seam) 100%, #0000 97%, #000);
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(circle var(--notch) at var(--seam) 0, #0000 97%, #000),
+    radial-gradient(circle var(--notch) at var(--seam) 100%, #0000 97%, #000);
+  mask-composite: intersect;
+}
+
+.closing-seam {
+  position: absolute;
+  inset-block: 1.75rem;
+  left: var(--seam);
+  width: 2px;
+  transform: translateX(-50%);
+  background-image: radial-gradient(
+    circle at center,
+    color-mix(in oklch, var(--poster-ink) 35%, transparent) 0 0.09375rem,
+    transparent 0.09375rem
+  );
+  background-size: 0.5rem 0.5rem;
+  background-repeat: repeat-y;
+  background-position: center;
+}
+
+@media (max-width: 767px) {
+  .closing-ticket {
+    --seam: 50%;
+    -webkit-mask:
+      radial-gradient(circle var(--notch) at 0 var(--seam-y), #0000 97%, #000),
+      radial-gradient(circle var(--notch) at 100% var(--seam-y), #0000 97%, #000);
+    -webkit-mask-composite: source-in;
+    mask:
+      radial-gradient(circle var(--notch) at 0 var(--seam-y), #0000 97%, #000),
+      radial-gradient(circle var(--notch) at 100% var(--seam-y), #0000 97%, #000);
+    mask-composite: intersect;
+    --seam-y: calc(100% - 9.25rem);
+  }
+
+  .closing-seam {
+    display: none;
+  }
+}

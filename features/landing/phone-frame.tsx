@@ -1,0 +1,13 @@
+import type { ReactNode } from "react";
+
+import { cn } from "@/lib/utils";
+
+export function PhoneFrame({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <div className={cn("phone-frame", className)}>{children}</div>;
+}

@@ -1,0 +1,237 @@
+"use client";
+
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import {
+  IconAlertCircle,
+  IconCheck,
+  IconUpload,
+} from "@tabler/icons-react";
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  parseRegistrationImportPreview,
+  type RegistrationImportPreviewResponse,
+} from "./registration-import-preview";
+
+type Message = { kind: "error" | "success"; text: string } | null;
+
+export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
+  const router = useRouter();
+  const [preview, setPreview] = useState<RegistrationImportPreviewResponse | null>(null);
+  const [message, setMessage] = useState<Message>(null);
+  const [pending, setPending] = useState<"preview" | "confirm" | null>(null);
+
+  async function createPreview(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPending("preview");
+    setMessage(null);
+    try {
+      const response = await fetch(
+        `/api/events/${encodeURIComponent(eventId)}/registrations/import/preview`,
+        { method: "POST", body: new FormData(event.currentTarget) },
+      );
+      const result: unknown = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          typeof result === "object" &&
+            result !== null &&
+            "message" in result &&
+            typeof result.message === "string"
+            ? result.message
+            : "The preview could not be created.",
+        );
+      }
+      setPreview(parseRegistrationImportPreview(result));
+    } catch (error) {
+      setPreview(null);
+      setMessage({
+        kind: "error",
+        text: error instanceof Error ? error.message : "The preview could not be created.",
+      });
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function confirmPreview() {
+    if (!preview) return;
+    setPending("confirm");
+    setMessage(null);
+    try {
+      const response = await fetch(
+        `/api/events/${encodeURIComponent(eventId)}/registrations/import/confirm`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ importId: preview.id }),
+        },
+      );
+      const result: unknown = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          typeof result === "object" &&
+            result !== null &&
+            "message" in result &&
+            typeof result.message === "string"
+            ? result.message
+            : "The import result could not be confirmed. Retry this preview to check its result.",
+        );
+      }
+      const importedCount =
+        typeof result === "object" &&
+        result !== null &&
+        "importedCount" in result &&
+        typeof result.importedCount === "number"
+          ? result.importedCount
+          : preview.rows.length;
+      setMessage({
+        kind: "success",
+        text: `${importedCount.toLocaleString()} guest${importedCount === 1 ? "" : "s"} imported. Tickets have been created; check each guest’s email delivery status in the roster.`,
+      });
+      router.refresh();
+    } catch (error) {
+      setMessage({
+        kind: "error",
+        text: error instanceof Error ? error.message : "The import result could not be confirmed. Retry this preview to check its result.",
+      });
+    } finally {
+      setPending(null);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <form onSubmit={createPreview} className="rounded-2xl border p-5 sm:p-6">
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="registration-import-file">Guest list CSV</FieldLabel>
+            <Input
+              id="registration-import-file"
+              name="file"
+              type="file"
+              accept=".csv,text/csv"
+              required
+              disabled={pending !== null}
+            />
+            <FieldDescription>
+              Up to 500 rows and 512 KB. Include name and email headers; custom
+              columns should match your registration question labels. Include
+              required questions. Separate multiple-choice answers with semicolons.
+            </FieldDescription>
+          </Field>
+          <a href="/registration-template.csv" download className="w-fit text-sm underline underline-offset-4">
+            Download CSV template
+          </a>
+          <Button type="submit" className="w-fit" disabled={pending !== null}>
+            {pending === "preview" ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <IconUpload data-icon="inline-start" />
+            )}
+            Preview import
+          </Button>
+        </FieldGroup>
+      </form>
+
+      {message ? (
+        <Alert variant={message.kind === "error" ? "destructive" : "default"}>
+          {message.kind === "error" ? (
+            <IconAlertCircle aria-hidden="true" />
+          ) : (
+            <IconCheck aria-hidden="true" />
+          )}
+          <AlertTitle>{message.kind === "error" ? "Import stopped" : "Import complete"}</AlertTitle>
+          <AlertDescription>{message.text}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {preview ? (
+        <section className="flex flex-col gap-5" aria-labelledby="import-preview-heading">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 id="import-preview-heading" className="text-lg font-headline">
+                Import preview
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {preview.projectedCapacity.claimed.toLocaleString()} claimed +{" "}
+                {preview.projectedCapacity.imported.toLocaleString()} ready to
+                import of {preview.projectedCapacity.capacity.toLocaleString()} capacity.
+              </p>
+            </div>
+            <Button
+              onClick={confirmPreview}
+              disabled={!preview.canConfirm || pending !== null || message?.kind === "success"}
+            >
+              {pending === "confirm" ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <IconCheck data-icon="inline-start" />
+              )}
+              Import guests and send tickets
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap gap-2" aria-label="CSV field mappings">
+            {preview.mappings.map((mapping) => (
+              <Badge key={mapping.header} variant="secondary">
+                {mapping.header} → {mapping.label}
+              </Badge>
+            ))}
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border">
+            <Table className="min-w-2xl">
+              <TableHeader className="bg-muted/50 text-muted-foreground">
+                <TableRow>
+                  <TableHead>Row</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Validation</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {preview.rows.map((row) => (
+                  <TableRow key={row.rowNumber} className="[content-visibility:auto]">
+                    <TableCell className="tabular-nums">{row.rowNumber}</TableCell>
+                    <TableCell>{row.name || "—"}</TableCell>
+                    <TableCell>{row.email || "—"}</TableCell>
+                    <TableCell>
+                      {row.errors.length === 0 ? (
+                        <Badge variant="secondary">Ready</Badge>
+                      ) : (
+                        <ul className="flex min-w-64 list-disc flex-col gap-1 pl-4 text-destructive-text">
+                          {[...new Set(row.errors)].map((error) => (
+                            <li key={error}>{error}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
