@@ -13,8 +13,6 @@
 # next.js
 /.next/
 /out/
-public/sw.js
-public/sw.js.map
 
 # production
 /build
@@ -40,12 +38,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# plans
-/plans
-
-# design-skill session state
 /.impeccable
-
-# local decision trails
 /.audit
 
