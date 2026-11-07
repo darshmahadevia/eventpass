@@ -182,6 +182,14 @@
     radial-gradient(circle var(--n) at 0 100%, #0000 calc(100% - 0.5px), #000) 0 100% / 100% 51% no-repeat;
 }
 
+/* A roll ticket: a half-circle bitten from the middle of each short side. */
+@utility notch-x {
+  --n: 9px;
+  mask:
+    radial-gradient(circle var(--n) at 0 50%, #0000 calc(100% - 0.5px), #000) 0 0 / 51% 100% no-repeat,
+    radial-gradient(circle var(--n) at 100% 50%, #0000 calc(100% - 0.5px), #000) 100% 0 / 51% 100% no-repeat;
+}
+
 @utility notch-both {
   --n: 13px;
 }
@@ -360,6 +368,150 @@ dialog.sheet[open]::backdrop {
 }
 
 /* Theme changes reveal the new page from the toggle; the old one stays put underneath. */
+/* ── Landing ─────────────────────────────────────────────────────────────── */
+
+/* On load: words rise out of their own line, then everything else follows. */
+@keyframes word-up {
+  from {
+    translate: 0 108%;
+  }
+}
+.word-mask {
+  display: inline-block;
+  overflow: clip;
+  vertical-align: top;
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+}
+.word-mask > span {
+  display: inline-block;
+  animation: word-up 900ms var(--ease-out-soft) both;
+  animation-delay: calc(var(--i, 0) * 55ms + 80ms);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    translate: 0 1.25rem;
+  }
+}
+.rise {
+  animation: rise 800ms var(--ease-out-soft) both;
+  animation-delay: calc(var(--d, 0) * 1ms);
+}
+
+@keyframes draw-x {
+  from {
+    scale: 0 1;
+  }
+}
+.draw-x {
+  transform-origin: left;
+  animation: draw-x 700ms var(--ease-out-soft) both;
+  animation-delay: calc(var(--d, 0) * 1ms);
+}
+
+/* The ticket roll that runs under the hero. Two copies of the strip make a seamless loop. */
+@keyframes marquee {
+  to {
+    translate: -50% 0;
+  }
+}
+.marquee {
+  animation: marquee 60s linear infinite;
+}
+.marquee-band:hover .marquee {
+  animation-play-state: paused;
+}
+
+/* The door demo. */
+@keyframes count-in {
+  from {
+    opacity: 0;
+    translate: 0 40%;
+  }
+}
+.count-in {
+  animation: count-in 420ms var(--ease-out-soft) both;
+}
+@keyframes pop {
+  from {
+    scale: 0.3;
+    opacity: 0;
+  }
+}
+.pop {
+  animation: pop 420ms var(--ease-spring) 60ms both;
+}
+
+/* Scroll-driven reveals, only where the browser can tie them to scroll and motion is welcome.
+   Elsewhere everything is simply there. */
+@keyframes scroll-rise {
+  from {
+    opacity: 0;
+    translate: 0 3rem;
+  }
+}
+@keyframes scroll-deal {
+  from {
+    opacity: 0;
+    translate: 0 5rem;
+    rotate: var(--r, -3deg);
+  }
+}
+@keyframes scroll-draw {
+  from {
+    scale: 1 0;
+  }
+}
+@keyframes scroll-pop {
+  from {
+    scale: 0.2;
+    opacity: 0;
+  }
+}
+@keyframes scroll-grow {
+  from {
+    scale: 0.92;
+    opacity: 0.3;
+  }
+}
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .scroll-rise,
+    .scroll-deal,
+    .scroll-draw,
+    .scroll-pop,
+    .scroll-grow {
+      animation-timing-function: var(--ease-out-soft);
+      animation-fill-mode: both;
+      animation-timeline: view();
+      animation-range: entry calc(var(--i, 0) * 8%) entry calc(80% + var(--i, 0) * 8%);
+    }
+    .scroll-rise {
+      animation-name: scroll-rise;
+    }
+    .scroll-deal {
+      animation-name: scroll-deal;
+      animation-range: entry calc(var(--i, 0) * 14%) cover calc(35% + var(--i, 0) * 8%);
+    }
+    .scroll-draw {
+      animation-name: scroll-draw;
+      transform-origin: top;
+      animation-range: entry 60% cover 55%;
+    }
+    .scroll-pop {
+      animation-name: scroll-pop;
+      animation-timing-function: var(--ease-spring);
+      animation-range: entry 50% entry 100%;
+    }
+    .scroll-grow {
+      animation-name: scroll-grow;
+      animation-range: entry 0% cover 40%;
+    }
+  }
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
@@ -379,6 +531,9 @@ dialog.sheet[open]::backdrop {
   }
   .sweep {
     display: none;
+  }
+  .marquee {
+    animation: none;
   }
 }
 

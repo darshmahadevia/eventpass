@@ -13,6 +13,7 @@ const LINE: { name: string; stock: Stock; verdict: "admit" | "stop" }[] = [
   { name: "Theo Silva", stock: "rose", verdict: "stop" },
   { name: "Omar Haddad", stock: "rose", verdict: "admit" },
   { name: "Nora Larsen", stock: "rose", verdict: "admit" },
+  { name: "Sam Ito", stock: "sky", verdict: "stop" },
 ];
 
 const calmMedia = "(prefers-reduced-motion: reduce)";
@@ -32,7 +33,7 @@ export function DoorDemo({ qr }: { qr: string }) {
   const [queued, setQueued] = useState(0);
   const [inside, setInside] = useState(31);
   const [turn, setTurn] = useState(0);
-  const [phase, setPhase] = useState<"waiting" | "scanning" | "result">("waiting");
+  const [phase, setPhase] = useState<"waiting" | "scanning" | "result" | "leaving">("waiting");
   const [visible, setVisible] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const onlineRef = useRef(online);
@@ -52,7 +53,7 @@ export function DoorDemo({ qr }: { qr: string }) {
   useEffect(() => {
     if (!visible) return;
     if (phase === "waiting" && calm) return; // waits for the "Scan next ticket" button
-    const wait = phase === "waiting" ? 500 : phase === "scanning" ? 950 : 1500;
+    const wait = { waiting: 450, scanning: 1100, result: 1250, leaving: 420 }[phase];
     const timer = setTimeout(() => {
       if (phase === "waiting") setPhase("scanning");
       if (phase === "scanning") {
@@ -62,7 +63,8 @@ export function DoorDemo({ qr }: { qr: string }) {
           if (!onlineRef.current) setQueued((n) => n + 1);
         }
       }
-      if (phase === "result") {
+      if (phase === "result") setPhase("leaving");
+      if (phase === "leaving") {
         setPhase("waiting");
         setTurn((n) => n + 1);
       }
@@ -78,68 +80,108 @@ export function DoorDemo({ qr }: { qr: string }) {
   }, [online, queued]);
 
   const admit = guest.verdict === "admit";
+  const decided = phase === "result" || phase === "leaving";
+  const framed = phase === "scanning" || phase === "result";
 
   return (
-    <div ref={root} className="mx-auto grid w-full max-w-[21.5rem] gap-4">
-      {/* The phone stays dark in both themes, like the real scanner. */}
-      <div
-        data-theme="dark"
-        role="img"
-        aria-label="A phone running the door scanner, admitting guests one after another."
-        className="relative aspect-[9/15.5] overflow-hidden rounded-[2.5rem] border border-[#333] bg-black text-white [box-shadow:0_0_0_6px_#111]"
-      >
-        <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-2 px-5 pt-5 text-sm">
-          <span className="font-semibold">Main entrance</span>
-          <span
-            className={cn(
-              "inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold transition-colors",
-              online && queued === 0 ? "bg-success-soft text-success" : online ? "bg-accent-soft text-accent-text" : "bg-warning-soft text-warning",
-            )}
-          >
-            {online ? <IconWifi aria-hidden className="size-3.5" /> : <IconWifiOff aria-hidden className="size-3.5" />}
-            {online ? (queued > 0 ? `Syncing ${queued}` : "Online") : queued > 0 ? `Offline, ${queued} saved` : "Offline"}
-          </span>
-        </div>
-
-        {/* Viewfinder */}
-        <div className="absolute inset-x-5 top-16 bottom-24 overflow-hidden rounded-3xl bg-[#101010]">
-          <Brackets />
-          <div
-            data-stock={guest.stock}
-            className={cn(
-              "absolute inset-x-[17%] top-1/2 rounded-2xl bg-accent p-3 transition-[translate,opacity] duration-500 ease-out-soft",
-              phase === "waiting" ? "translate-y-[120%] opacity-0" : "-translate-y-1/2 opacity-100",
-            )}
-          >
-            <div className="rounded-lg bg-white p-2.5">
-              <div className="aspect-square [&_svg]:size-full" dangerouslySetInnerHTML={{ __html: qr }} />
-            </div>
-            <p className="mt-2 truncate text-center text-sm font-semibold text-ink">{guest.name}</p>
-          </div>
-          {phase === "scanning" && <div className="sweep absolute inset-x-[10%] h-0.5 rounded-full bg-white shadow-[0_0_14px_3px_rgb(255_255_255/.6)]" />}
-        </div>
-
-        <div className="absolute inset-x-6 bottom-6 flex items-end justify-between">
-          <p className="display text-5xl leading-none tabular-nums">{inside}</p>
-          <p className="text-right text-sm leading-tight text-muted">
-            of 80 guests
-            <br />
-            inside
-          </p>
-        </div>
-
-        {phase === "result" && (
-          <div className={cn("flood absolute inset-0 z-20 grid place-content-center px-6 text-center text-ink", admit ? "bg-go" : "bg-stop")}>
-            <span className="mx-auto mb-3 grid size-16 place-items-center rounded-full bg-ink text-white">
-              {admit ? <IconCheck className="size-9" stroke={3} /> : <IconX className="size-9" stroke={3} />}
+    <div ref={root} className="rise mx-auto grid w-full max-w-[21.5rem] gap-4 [--d:350]">
+      <div className="relative isolate">
+        {/* A glow behind the phone takes the colour of each decision. */}
+        <div
+          aria-hidden
+          className={cn(
+            "absolute -inset-10 -z-10 rounded-[5rem] blur-3xl transition-[background-color,opacity] duration-700",
+            decided ? (admit ? "bg-go opacity-30" : "bg-stop opacity-30") : "bg-accent opacity-[0.12]",
+          )}
+        />
+        {/* The phone stays dark in both themes, like the real scanner. */}
+        <div
+          data-theme="dark"
+          role="img"
+          aria-label="A phone running the door scanner, admitting guests one after another."
+          className="relative aspect-[9/15.5] overflow-hidden rounded-[2.5rem] border border-[#333] bg-black text-white [box-shadow:0_0_0_6px_#111,0_30px_80px_-20px_rgb(0_0_0/0.6)]"
+        >
+          <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-2 px-5 pt-5 text-sm">
+            <span className="font-semibold">Main entrance</span>
+            <span
+              className={cn(
+                "inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold transition-colors duration-300",
+                online && queued === 0 ? "bg-success-soft text-success" : online ? "bg-accent-soft text-accent-text" : "bg-warning-soft text-warning",
+              )}
+            >
+              {online ? <IconWifi aria-hidden className="size-3.5" /> : <IconWifiOff aria-hidden className="size-3.5" />}
+              <span key={`${online}-${queued}`} className="count-in">
+                {online ? (queued > 0 ? `Syncing ${queued}` : "Online") : queued > 0 ? `Offline, ${queued} saved` : "Offline"}
+              </span>
             </span>
-            <p className="display text-6xl">{admit ? "Admit" : "Stop"}</p>
-            <p className="mt-2 text-xl font-semibold">{guest.name}</p>
-            <p className="mt-1 text-sm font-medium">
-              {!admit ? "Already checked in at 7:42 PM" : online ? "Checked in" : "Saved on this phone"}
+          </div>
+
+          {/* Viewfinder */}
+          <div className="absolute inset-x-5 top-16 bottom-24 overflow-hidden rounded-3xl bg-[#101010]">
+            <Brackets
+              className={cn(
+                "transition-[inset,opacity] duration-500 ease-out-soft",
+                framed ? "inset-[13%] opacity-100" : "opacity-50",
+              )}
+            />
+            <div
+              key={turn}
+              data-stock={guest.stock}
+              className={cn(
+                "absolute inset-x-[19%] top-1/2 rounded-2xl bg-accent p-3 shadow-[0_20px_40px_rgb(0_0_0/0.5)]",
+                phase === "waiting" && "translate-y-[110%] rotate-[7deg] opacity-0",
+                framed && "-translate-y-1/2 transition-[translate,rotate,opacity] duration-700 ease-spring",
+                phase === "leaving" && "-translate-y-[230%] -rotate-[5deg] opacity-0 transition-[translate,rotate,opacity] duration-[420ms] ease-in",
+              )}
+            >
+              <div className="rounded-lg bg-white p-2.5">
+                <div className="aspect-square [&_svg]:size-full" dangerouslySetInnerHTML={{ __html: qr }} />
+              </div>
+              <p className="mt-2 truncate text-center text-sm font-semibold text-ink">{guest.name}</p>
+            </div>
+            {phase === "scanning" && (
+              <div className="sweep absolute inset-x-[10%] h-0.5 rounded-full bg-white shadow-[0_0_14px_3px_rgb(255_255_255/.6)]" />
+            )}
+          </div>
+
+          <div className="absolute inset-x-6 bottom-6 flex items-end justify-between">
+            <p className="display h-[0.95em] overflow-hidden text-5xl leading-none tabular-nums">
+              <span key={inside} className="count-in inline-block">
+                {inside}
+              </span>
+            </p>
+            <p className="text-right text-sm leading-tight text-muted">
+              of 80 guests
+              <br />
+              inside
             </p>
           </div>
-        )}
+
+          {decided && (
+            <div
+              className={cn(
+                "flood absolute inset-0 z-20 grid place-content-center px-6 text-center text-ink transition-opacity duration-300",
+                admit ? "bg-go" : "bg-stop",
+                phase === "leaving" && "opacity-0",
+              )}
+            >
+              <span className="pop mx-auto mb-3 grid size-16 place-items-center rounded-full bg-ink text-white">
+                {admit ? <IconCheck className="size-9" stroke={3} /> : <IconX className="size-9" stroke={3} />}
+              </span>
+              <p className="rise display text-6xl [--d:90]">{admit ? "Admit" : "Stop"}</p>
+              <p className="rise mt-2 text-xl font-semibold [--d:160]">{guest.name}</p>
+              <p className="rise mt-1 text-sm font-medium [--d:220]">
+                {!admit
+                  ? guest.stock === "rose"
+                    ? "Already checked in at 7:42 PM"
+                    : "Ticket is for another night"
+                  : online
+                    ? "Checked in"
+                    : "Saved on this phone"}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-line-strong px-4 py-3 transition-colors hover:border-fg">
