@@ -1,6 +1,6 @@
 "use client";
 
-import { IconCheck, IconCopy } from "@tabler/icons-react";
+import { IconCheck, IconCopy, IconPrinter } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -57,5 +57,13 @@ export function Tabs({ tabs }: { tabs: { href: string; label: string }[] }) {
         );
       })}
     </nav>
+  );
+}
+
+export function PrintButton() {
+  return (
+    <Button type="button" variant="secondary" onClick={() => window.print()}>
+      <IconPrinter className="size-4" /> Print
+    </Button>
   );
 }
