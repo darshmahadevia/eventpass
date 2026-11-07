@@ -377,7 +377,7 @@ export function createRegistrationImportService({
     const existingEmails = new Set(existing.map((row) => row.normalizedEmail));
     for (const row of rows) {
       if (existingEmails.has(row.normalizedEmail)) {
-        row.errors.push("An active Registration already uses this email address.");
+        row.errors.push("An active registration already uses this email address.");
       }
     }
 
@@ -386,7 +386,7 @@ export function createRegistrationImportService({
     const remaining = Math.max(0, authorizedEvent.capacity - claimed);
     if (validRows.length > remaining) {
       for (const row of validRows.slice(remaining)) {
-        row.errors.push("This row would exceed Event Capacity.");
+        row.errors.push("This row would exceed event capacity.");
       }
     }
     const payload = registrationImportPreviewPayloadSchema.parse({
@@ -567,7 +567,7 @@ export function createRegistrationImportService({
         .values(
           rows.map((row, index) => {
             const managementToken = managementTokens[index];
-            if (!managementToken) throw new Error("Could not import Registration.");
+            if (!managementToken) throw new Error("Could not import registration.");
             return {
               eventId,
               attendeeName: row.name,
@@ -583,11 +583,11 @@ export function createRegistrationImportService({
         )
         .returning({ id: registration.id });
       if (insertedRegistrations.length !== payload.rows.length) {
-        throw new Error("Could not import Registration.");
+        throw new Error("Could not import registration.");
       }
       const createdRegistrations = rows.map((row, index) => {
         const createdRegistration = insertedRegistrations[index];
-        if (!createdRegistration) throw new Error("Could not import Registration.");
+        if (!createdRegistration) throw new Error("Could not import registration.");
         return {
           registrationId: createdRegistration.id,
           row,
@@ -608,7 +608,7 @@ export function createRegistrationImportService({
           usedCodes.add(candidate);
           break;
         }
-        if (!code) throw new Error("Could not allocate a unique Ticket Code.");
+        if (!code) throw new Error("Could not allocate a unique ticket code.");
         const ticketId = createTicketId();
         return {
           id: ticketId,
@@ -625,7 +625,7 @@ export function createRegistrationImportService({
         const issued = ticketRows[index];
         const managementToken = managementTokens[index];
         if (!issued || !managementToken) {
-          throw new Error("Could not import Registration.");
+          throw new Error("Could not import registration.");
         }
         return {
           email: row.email,
@@ -647,17 +647,17 @@ export function createRegistrationImportService({
 
       const fieldIds = fields.map((field) => field.id);
       if (fieldIds.length > 0) {
-        await transaction.insert(registrationAnswer).values(
-          createdRegistrations.flatMap(({ registrationId, row }) =>
-            fieldIds.map((fieldId) => {
-              return {
-                registrationId,
-                fieldId,
-                value: row.answers[fieldId] ?? null,
-              };
+        // An empty optional cell has no answer to store; `value` is NOT NULL.
+        const importedAnswers = createdRegistrations.flatMap(
+          ({ registrationId, row }) =>
+            fieldIds.flatMap((fieldId) => {
+              const value = row.answers[fieldId];
+              return value == null ? [] : [{ registrationId, fieldId, value }];
             }),
-          ),
         );
+        if (importedAnswers.length > 0) {
+          await transaction.insert(registrationAnswer).values(importedAnswers);
+        }
         await transaction
           .update(registrationField)
           .set({

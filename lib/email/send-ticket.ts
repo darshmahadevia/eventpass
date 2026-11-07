@@ -37,14 +37,22 @@ export async function sendTicket({
   };
   ticketCode: string;
   ticketJws: string;
-  managementToken: string;
+  managementToken: string | null;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   const applicationUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL;
-  if (!apiKey) throw new Error("RESEND_API_KEY is required to send Ticket emails.");
-  if (!applicationUrl) throw new Error("NEXT_PUBLIC_APP_URL is required to create Ticket links.");
+  if (!apiKey) throw new Error("RESEND_API_KEY is required to send ticket emails.");
+  if (!applicationUrl) throw new Error("NEXT_PUBLIC_APP_URL is required to create ticket links.");
 
-  const managementUrl = new URL(`/tickets/${encodeURIComponent(managementToken)}`, applicationUrl);
+  const managementUrl = managementToken
+    ? new URL(`/tickets/${encodeURIComponent(managementToken)}`, applicationUrl).toString()
+    : null;
+  const manageHtml = managementUrl
+    ? `<p><a href="${escapeHtml(managementUrl)}">Open your ticket</a></p><p>This link manages your registration, so keep it to yourself. At the door, show either the QR code or the ticket code.</p>`
+    : `<p>At the door, show either the QR code or the ticket code. To change your details, use the link in your first ticket email.</p>`;
+  const manageText = managementUrl
+    ? `Open your ticket: ${managementUrl}\n\nThis link manages your registration, so keep it to yourself.`
+    : "At the door, show either the QR code or the ticket code. To change your details, use the link in your first ticket email.";
   const formattedCode = formatTicketCode(ticketCode);
   const schedule = formatEventRange(event.startsAt, event.endsAt, event.eventTimeZone);
   const qrImage = await QRCode.toBuffer(ticketJws, {
@@ -81,8 +89,8 @@ export async function sendTicket({
             filename: "eventpass-ticket.png",
           },
         ],
-        html: `<div style="${EMAIL_BODY_STYLE}"><h1 style="font-size:24px">Your ticket for ${escapeHtml(event.name)}</h1><p>${escapeHtml(attendeeName)}, you’re registered.</p><p><strong>When:</strong> ${escapeHtml(schedule)}<br><strong>Venue:</strong> ${escapeHtml(event.venueName)}, ${escapeHtml(event.venueAddress)}</p><p><img src="cid:eventpass-ticket-qr" width="280" height="280" alt="QR code for your ticket"></p><p><strong>Ticket code:</strong> <span style="${EMAIL_CODE_STYLE}">${formattedCode}</span></p><p><a href="${escapeHtml(managementUrl.toString())}">Open your ticket</a></p><p>This link manages your registration, so keep it to yourself. At the door, show either the QR code or the ticket code.</p></div>`,
-        text: `You’re registered for ${event.name}.\n\nWhen: ${schedule}\nVenue: ${event.venueName}, ${event.venueAddress}\nTicket code: ${formattedCode}\n\nOpen your ticket: ${managementUrl.toString()}\n\nThis link manages your registration, so keep it to yourself.`,
+        html: `<div style="${EMAIL_BODY_STYLE}"><h1 style="font-size:24px">Your ticket for ${escapeHtml(event.name)}</h1><p>${escapeHtml(attendeeName)}, you’re registered.</p><p><strong>When:</strong> ${escapeHtml(schedule)}<br><strong>Venue:</strong> ${escapeHtml(event.venueName)}, ${escapeHtml(event.venueAddress)}</p><p><img src="cid:eventpass-ticket-qr" width="280" height="280" alt="QR code for your ticket"></p><p><strong>Ticket code:</strong> <span style="${EMAIL_CODE_STYLE}">${formattedCode}</span></p>${manageHtml}</div>`,
+        text: `You’re registered for ${event.name}.\n\nWhen: ${schedule}\nVenue: ${event.venueName}, ${event.venueAddress}\nTicket code: ${formattedCode}\n\n${manageText}`,
       },
       { idempotencyKey: `email-delivery/${delivery.id}` },
     );
@@ -91,7 +99,7 @@ export async function sendTicket({
       .update(emailDelivery)
       .set({ attemptCount: 1, failureKind: "transient", outcome: "transient_failure" })
       .where(eq(emailDelivery.id, delivery.id));
-    throw new Error("The Ticket email could not be sent.");
+    throw new Error("The ticket email could not be sent.");
   }
 
   if (!response.error) {
@@ -111,5 +119,5 @@ export async function sendTicket({
       outcome: transient ? "transient_failure" : "permanent_failure",
     })
     .where(eq(emailDelivery.id, delivery.id));
-  throw new Error("The Ticket email could not be sent.");
+  throw new Error("The ticket email could not be sent.");
 }

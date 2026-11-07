@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { IconAlertCircle, IconMailCheck } from "@tabler/icons-react";
 
 import { PublicAuthShell } from "@/components/public-auth-shell";
+import { signOutAction } from "@/app/(workspace)/actions";
 import { FormSubmitButton } from "@/components/form-submit-button";
 import { PendingLink } from "@/components/pending-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -55,7 +56,7 @@ export default async function StaffInvitationPage({
             <IconAlertCircle aria-hidden="true" />
             <AlertTitle>This link no longer works</AlertTitle>
             <AlertDescription>
-              It may have expired, been revoked, already been used, or belong to another signed-in email.
+              It may have expired or already been used. Ask the organizer to send a new one.
             </AlertDescription>
           </Alert>
         ) : invitation.suspended ? (
@@ -82,7 +83,7 @@ export default async function StaffInvitationPage({
             {!session ? (
               <div className="flex flex-col gap-3">
                 <p className="text-support text-muted-foreground">
-                  Sign in as {invitation.normalizedEmail} to accept this email-bound invitation.
+                  This invitation is for {invitation.normalizedEmail}. Sign in with that address to accept.
                 </p>
                 <PendingLink
                   href={`/sign-in?callbackUrl=${encodeURIComponent(`/staff-invitations/${token}`)}`}
@@ -104,13 +105,25 @@ export default async function StaffInvitationPage({
                 </FormSubmitButton>
               </form>
             ) : (
-              <Alert variant="destructive">
-                <IconAlertCircle aria-hidden="true" />
-                <AlertTitle>Signed in with a different email</AlertTitle>
-                <AlertDescription>
-                  Sign out and return as {invitation.normalizedEmail}. Access cannot be assigned to another identity.
-                </AlertDescription>
-              </Alert>
+              <div className="flex flex-col gap-3">
+                <Alert variant="warning">
+                  <IconAlertCircle aria-hidden="true" />
+                  <AlertTitle>You are signed in with a different email</AlertTitle>
+                  <AlertDescription>
+                    This invitation is for {invitation.normalizedEmail}. Sign
+                    out, then open the link from your invitation email again.
+                  </AlertDescription>
+                </Alert>
+                <form action={signOutAction}>
+                  <FormSubmitButton
+                    variant="outline"
+                    className="w-full"
+                    pendingLabel="Signing out"
+                  >
+                    Sign out
+                  </FormSubmitButton>
+                </form>
+              </div>
             )}
           </div>
         )}

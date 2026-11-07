@@ -38,7 +38,7 @@ export async function allocateTicketCode({
       .limit(1);
     if (!existing) return candidate;
   }
-  throw new Error("Could not allocate a unique Ticket Code.");
+  throw new Error("Could not allocate a unique ticket code.");
 }
 
 export async function issueTicket({  transaction,

@@ -108,7 +108,7 @@ export function AdminActionDialog({
           </AlertDialogHeader>
 
           <Field data-invalid={Boolean(error)}>
-            <FieldLabel htmlFor="admin-reason-input">Reason</FieldLabel>
+            <FieldLabel htmlFor="admin-reason-input">Reason (required)</FieldLabel>
             <Textarea
               id="admin-reason-input"
               name="reason"

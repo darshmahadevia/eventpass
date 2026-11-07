@@ -14,7 +14,7 @@ function MetricPanelSkeleton() {
 function LiveMetricsSkeleton() {
   return (
     <div
-      aria-label="Loading live event metrics"
+      role="status" aria-label="Loading live event metrics"
       aria-busy="true"
       className="flex flex-col gap-6"
     >

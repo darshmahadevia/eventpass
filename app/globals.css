@@ -465,6 +465,10 @@
     scroll-margin-top: 5rem;
   }
 
+  main:focus {
+    outline: none;
+  }
+
   a:focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 4px;
@@ -487,6 +491,14 @@
   time,
   [data-slot="badge"] {
     font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Installed on a phone, the status bar is translucent and the page runs under
+   it. A door volunteer's back button must not sit behind the clock. */
+@media (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
   }
 }
 
@@ -536,6 +548,13 @@
     letter-spacing: -0.035em;
   }
 
+  /* A phone turned sideways has no height to spend on the headline. */
+  @media (max-height: 480px) {
+    .type-door {
+      font-size: 2.25rem;
+    }
+  }
+
   /* A page's own title in the working screens: Hanken at a size that reads as a
      place, not a label. */
   .type-page {
@@ -578,6 +597,55 @@
     border-radius: var(--radius-container);
     background: var(--card);
     color: var(--card-foreground);
+  }
+}
+
+/* See `stack` on Table. */
+@container table (max-width: 52rem) {
+  table[data-stack],
+  table[data-stack] tbody,
+  table[data-stack] tr,
+  table[data-stack] td {
+    display: block;
+    width: 100%;
+    max-width: none;
+  }
+
+  table[data-stack] thead {
+    display: none;
+  }
+
+  table[data-stack] tr {
+    padding: 0.875rem 1rem;
+  }
+
+  table[data-stack] tr:hover {
+    background: transparent;
+  }
+
+  table[data-stack] td {
+    height: auto;
+    padding: 0;
+    text-align: left;
+    white-space: normal;
+  }
+
+  table[data-stack] td + td {
+    margin-top: 0.5rem;
+  }
+
+  table[data-stack] td[data-label] {
+    display: grid;
+    grid-template-columns: 5rem minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: start;
+  }
+
+  table[data-stack] td[data-label]::before {
+    content: attr(data-label);
+    color: var(--muted-foreground);
+    font-size: var(--text-xs);
+    line-height: 1.5rem;
   }
 }
 

@@ -155,7 +155,7 @@ export function createCheckInConflictResolutionService({
         .where(eq(checkInConflict.id, values.conflictId))
         .limit(1);
       if (!located) {
-        throw new CheckInConflictError("This Check-in Conflict no longer exists.");
+        throw new CheckInConflictError("This check-in conflict no longer exists.");
       }
       await lockEventForMutation(transaction, located.eventId);
       const [conflict] = await transaction
@@ -166,7 +166,7 @@ export function createCheckInConflictResolutionService({
         .limit(1);
       if (!conflict || conflict.status !== "unresolved") {
         throw new CheckInConflictError(
-          "This Check-in Conflict is no longer unresolved.",
+          "This check-in conflict is no longer unresolved.",
         );
       }
       const [assignment] = await transaction
@@ -182,7 +182,7 @@ export function createCheckInConflictResolutionService({
         .limit(1);
       if (!assignment) {
         throw new CheckInConflictError(
-          "Only an Organizer can resolve Check-in Conflicts.",
+          "Only an organizer can resolve check-in conflicts.",
         );
       }
       const [selectedAttempt] = await transaction
@@ -211,7 +211,7 @@ export function createCheckInConflictResolutionService({
         (reversedAt && selectedAttempt.attemptedAt <= reversedAt)
       ) {
         throw new CheckInConflictError(
-          "Select a Scan Attempt from this Check-in Conflict.",
+          "Select a Scan Attempt from this check-in conflict.",
         );
       }
 
@@ -231,7 +231,7 @@ export function createCheckInConflictResolutionService({
         .limit(1);
       if (!presentedTicket) {
         throw new CheckInConflictError(
-          "This Ticket can no longer be checked in.",
+          "This ticket can no longer be checked in.",
         );
       }
       const decision = decideTicketValidity({
@@ -248,7 +248,7 @@ export function createCheckInConflictResolutionService({
       });
       if (decision.verdict !== "admit") {
         throw new CheckInConflictError(
-          "This Ticket can no longer be checked in.",
+          "This ticket can no longer be checked in.",
         );
       }
 

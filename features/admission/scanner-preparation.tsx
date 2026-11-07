@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  IconCloudCheck,
   IconCloudOff,
   IconDatabase,
   IconRefresh,
@@ -21,15 +20,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import {
@@ -47,16 +39,22 @@ type ReplacementRequest = {
   pendingAttemptCount: number;
 };
 
+/** What the rest of the scanner needs to know about the list on this phone. */
+export type GuestListSummary = {
+  age: string;
+  guests: OfflineEventSnapshot["tickets"];
+};
+
 function formatSnapshotAge(generatedAt: string, now: Date) {
   const elapsedSeconds = Math.max(
     0,
     Math.floor((now.getTime() - new Date(generatedAt).getTime()) / 1000),
   );
-  if (elapsedSeconds < 60) return "less than a minute old";
+  if (elapsedSeconds < 60) return "just now";
   const minutes = Math.floor(elapsedSeconds / 60);
-  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} old`;
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
   const hours = Math.floor(minutes / 60);
-  return `${hours} hour${hours === 1 ? "" : "s"} old`;
+  return `${hours} hour${hours === 1 ? "" : "s"} ago`;
 }
 
 function formatEventTime(value: string, timeZone: string) {
@@ -70,16 +68,23 @@ function formatEventTime(value: string, timeZone: string) {
 export function ScannerPreparation({
   eventId,
   eventSuspended,
+  online,
+  onGuestListChange,
+  className,
 }: {
   eventId: string;
   eventSuspended: boolean;
+  online: boolean;
+  onGuestListChange: (summary: GuestListSummary | null) => void;
+  className?: string;
 }) {
+  // One tap to get ready. The label is only stored on the device, so asking a
+  // volunteer to invent one gained them nothing.
   const [deviceId, setDeviceId] = useState("");
   const [storageStatus, setStorageStatus] = useState<"loading" | "ready" | "error">("loading");
   const [storageAttempt, setStorageAttempt] = useState(0);
   const [deviceLabel, setDeviceLabel] = useState("");
   const [snapshot, setSnapshot] = useState<OfflineEventSnapshot | null>(null);
-  const [online, setOnline] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +103,9 @@ export function ScannerPreparation({
       .then(([device, cachedSnapshot]) => {
         if (!active) return;
         setDeviceId(device.id);
-        setDeviceLabel(device.label);
+        // A sensible name is already there, so getting ready is one tap. The
+        // team can still rename it, and a volunteer with a queue never has to.
+        setDeviceLabel(device.label || "Door phone");
         setSnapshot(cachedSnapshot);
         setStorageStatus("ready");
       })
@@ -106,7 +113,7 @@ export function ScannerPreparation({
         if (active) {
           setStorageStatus("error");
           setError(
-            "Offline storage could not be opened. Retry, or use a browser with storage enabled. Online check-in is still available while connected.",
+            "This browser would not save the guest list. Try again, or keep scanning online while you have signal.",
           );
         }
       });
@@ -114,19 +121,6 @@ export function ScannerPreparation({
       active = false;
     };
   }, [storageAttempt]);
-
-  useEffect(() => {
-    function updateConnectivity() {
-      setOnline(navigator.onLine);
-    }
-    updateConnectivity();
-    window.addEventListener("online", updateConnectivity);
-    window.addEventListener("offline", updateConnectivity);
-    return () => {
-      window.removeEventListener("online", updateConnectivity);
-      window.removeEventListener("offline", updateConnectivity);
-    };
-  }, []);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 30_000);
@@ -159,17 +153,17 @@ export function ScannerPreparation({
       });
       if (result.outcome === "unauthorized") {
         setError(
-          "Current staff access to this event is required to prepare it for offline admission.",
+          "Your account no longer has access to this event. Ask an organizer to add you.",
         );
         return;
       }
       if (result.outcome === "event_unavailable") {
-        setError("This event cannot be prepared for offline use.");
+        setError("This event cannot be saved to this phone right now.");
         return;
       }
       if (result.outcome === "expired") {
         setError(
-          "Check-in has closed. This event can no longer be prepared for offline use.",
+          "Check-in has closed, so the guest list can no longer be saved to this phone.",
         );
         return;
       }
@@ -188,7 +182,7 @@ export function ScannerPreparation({
       }
     } catch {
       setError(
-        "The guest list could not be downloaded. Check that this device is online, then try again.",
+        "The guest list could not be downloaded. Check this phone has signal, then try again.",
       );
     } finally {
       setPending(false);
@@ -213,38 +207,45 @@ export function ScannerPreparation({
     ? getSnapshotReadiness(currentSnapshot, now)
     : null;
 
+  const listAge = currentSnapshot
+    ? formatSnapshotAge(currentSnapshot.generatedAt, now)
+    : null;
+  useEffect(() => {
+    if (storageStatus === "loading") return;
+    onGuestListChange(
+      currentSnapshot && listAge
+        ? { age: listAge, guests: currentSnapshot.tickets }
+        : null,
+    );
+  }, [currentSnapshot, listAge, onGuestListChange, storageStatus]);
+
   return (
     <section
       aria-labelledby="offline-preparation-heading"
-      className="panel p-4 sm:p-5"
+      className={cn("panel", readiness === "ready" ? "p-3 sm:p-4" : "p-4 sm:p-5", className)}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 id="offline-preparation-heading" className="text-lg font-headline">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="min-w-0">
+          <h2
+            id="offline-preparation-heading"
+            className={readiness === "ready" ? "text-sm font-semibold" : "text-lg font-headline"}
+          >
             {readiness === "ready"
               ? currentSnapshot?.tickets.length === 0
                 ? "No tickets saved yet"
                 : "Ready to work offline"
               : "Get this phone ready for no signal"}
           </h2>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          <p className="max-w-2xl text-sm text-muted-foreground">
             {readiness === "ready" && currentSnapshot
               ? currentSnapshot.tickets.length === 0
                 ? online
                   ? "Online checks use the server. Refresh this list after guests confirm to check them in offline."
                   : "No tickets are saved for offline checks. Connect and refresh after guests confirm."
-                : `${currentSnapshot.tickets.length} tickets on ${deviceLabel}`
-              : "Name this phone and load the guest list while the signal is good."}
+                : `${currentSnapshot.tickets.length} tickets saved ${listAge}`
+              : "Load the guest list while the signal is good, and this phone keeps scanning if the Wi-Fi drops."}
           </p>
         </div>
-        <Badge variant={online ? "secondary" : "destructive"}>
-          {online ? (
-            <IconCloudCheck data-icon="inline-start" />
-          ) : (
-            <IconCloudOff data-icon="inline-start" />
-          )}
-          {online ? "Online" : "Offline"}
-        </Badge>
         {readiness === "ready" && currentSnapshot?.tickets.length === 0 ? (
           <Button
             className="min-h-11"
@@ -311,16 +312,13 @@ export function ScannerPreparation({
             )}
             <AlertTitle>
               {readiness === "ready"
-                ? "Ready to work offline"
+                ? "Guest list saved"
                 : readiness === "refresh_required"
                   ? "Guest list needs a refresh"
                   : "This phone has lost access"}
             </AlertTitle>
             <AlertDescription>
-              Downloaded {formatSnapshotAge(currentSnapshot.generatedAt, now)}.{" "}
-              {currentSnapshot.tickets.length}{" "}
-              {currentSnapshot.tickets.length === 1 ? "ticket" : "tickets"}. Works
-              offline until{" "}
+              Saved {listAge}. Works offline until{" "}
               {formatEventTime(
                 currentSnapshot.event.checkInClosesAt,
                 currentSnapshot.event.eventTimeZone,
@@ -358,37 +356,18 @@ export function ScannerPreparation({
         ) : null}
 
         <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="scanner-device-label">
-              Name for this phone
-            </FieldLabel>
-            <Input
-              id="scanner-device-label"
-              value={deviceLabel}
-              onChange={(event) => setDeviceLabel(event.target.value)}
-              placeholder="Main entrance phone"
-              autoComplete="off"
-              maxLength={80}
-              disabled={!deviceId || pending}
-            />
-            <FieldDescription>
-              Choose a name your team can recognize, such as “North entrance”.
-            </FieldDescription>
-          </Field>
           <p
             id="scanner-preparation-help"
-            className="text-sm text-muted-foreground"
+            className="text-sm text-muted-foreground empty:hidden"
             aria-live="polite"
           >
             {!online
               ? "Connect to the internet to load the guest list."
               : storageStatus === "error"
-                ? "Offline setup is paused. Retry storage above to continue."
+                ? "Use Try again above to continue."
               : storageStatus === "loading"
                 ? "Opening this browser’s offline storage…"
-                : deviceLabel.trim().length < 2
-                  ? "Enter a phone name with at least 2 characters to continue."
-                  : "Load the guest list now so this phone can scan without a signal."}
+                : ""}
           </p>
           <Button
             type="button"

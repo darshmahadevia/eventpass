@@ -15,7 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { PendingLink } from "@/components/pending-link";
 import { formatTicketCode } from "@/features/tickets/ticket-code";
-import { formatEventRange } from "@/lib/format-event-range";
+import { formatCompactRange, formatEventRange } from "@/lib/format-event-range";
 import { PrintTicketButton } from "@/features/tickets/print-ticket-button";
 import { RegistrationManagementControls } from "@/features/tickets/registration-management-controls";
 import { TicketStub } from "@/features/tickets/ticket-stub";
@@ -27,17 +27,6 @@ export const metadata: Metadata = {
   referrer: "no-referrer",
   robots: { index: false, follow: false },
 };
-
-function formatCompactRange(startsAt: Date, endsAt: Date, timeZone: string) {
-  return new Intl.DateTimeFormat("en", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone,
-  }).formatRange(startsAt, endsAt);
-}
 
 export default async function TicketPage({
   params,
@@ -80,8 +69,8 @@ export default async function TicketPage({
             <IconAlertTriangle aria-hidden="true" />
             <AlertTitle>Event currently unavailable</AlertTitle>
             <AlertDescription>
-              This Event is currently unavailable. Ticket and Registration
-              information remains visible, but management actions are paused.
+              Your ticket details are still here, but changes are paused for
+              now.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -101,11 +90,10 @@ export default async function TicketPage({
           <Alert variant="warning" className="print:hidden">
             <IconMailExclamation aria-hidden="true" />
             <AlertTitle>
-              Your ticket is ready, but the email was not accepted
+              Your ticket is ready, but the email did not send
             </AlertTitle>
             <AlertDescription>
-              Save or print this page now. The confirmed registration and ticket
-              remain valid.
+              Save or print this page now. Your ticket works either way.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -171,8 +159,9 @@ export default async function TicketPage({
           <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <p className="flex items-start gap-2 text-sm text-muted-foreground">
               <IconShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-              This page is private. At the door, show only the QR code or the
-              ticket code.
+              This page is private, so show only the QR code or ticket code at
+              the door. Venues can have poor signal: a screenshot of the code
+              works too.
             </p>
             <PendingLink
               href={`/e/${management.event.slug}`}

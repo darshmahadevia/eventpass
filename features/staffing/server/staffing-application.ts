@@ -79,8 +79,8 @@ function assertCanManageRole(
   if (!actorRole || !canManageRole(actorRole, targetRole)) {
     throw new StaffingAuthorizationError(
       targetRole === "organizer"
-        ? "Only the Event Owner can manage Organizers."
-        : "Only the Event Owner or an Organizer can manage Check-in Volunteers.",
+        ? "Only the event owner can manage organizers."
+        : "Only the event owner or an organizer can manage check-in Volunteers.",
     );
   }
 }
@@ -132,7 +132,7 @@ export async function createStaffInvitation(
       )
       .limit(1);
     if (existingStaff) {
-      throw new StaffingConflictError("That person already has access to this Event.");
+      throw new StaffingConflictError("That person already has access to this event.");
     }
 
     const [pendingInvitation] = await transaction
@@ -152,7 +152,7 @@ export async function createStaffInvitation(
       .limit(1);
     if (pendingInvitation) {
       throw new StaffingConflictError(
-        "A pending Staff Invitation already exists for that email address.",
+        "A pending staff invitation already exists for that email address.",
       );
     }
 
@@ -168,7 +168,7 @@ export async function createStaffInvitation(
       })
       .returning({ id: staffInvitation.id });
     if (!invitation) {
-      throw new Error("Could not create the Staff Invitation.");
+      throw new Error("Could not create the staff invitation.");
     }
 
     await transaction.insert(auditEntry).values({
@@ -201,7 +201,7 @@ export async function acceptStaffInvitation(
       .limit(1);
     if (!located) {
       throw new StaffInvitationUnavailableError(
-        "This Staff Invitation is expired, revoked, or already used.",
+        "This staff invitation is expired, revoked, or already used.",
       );
     }
     await lockEventForMutation(transaction, located.eventId);
@@ -214,7 +214,7 @@ export async function acceptStaffInvitation(
 
     if (!invitation) {
       throw new StaffInvitationUnavailableError(
-        "This Staff Invitation is expired, revoked, or already used.",
+        "This staff invitation is expired, revoked, or already used.",
       );
     }
 
@@ -229,12 +229,12 @@ export async function acceptStaffInvitation(
     const acceptance = evaluateStaffInvitationAcceptance(invitation, actor.email, now);
     if (acceptance === "unavailable") {
       throw new StaffInvitationUnavailableError(
-        "This Staff Invitation is expired, revoked, or already used.",
+        "This staff invitation is expired, revoked, or already used.",
       );
     }
     if (acceptance === "email_mismatch") {
       throw new StaffInvitationEmailMismatchError(
-        "Sign in with the email address named by this Staff Invitation.",
+        "Sign in with the email address named by this staff invitation.",
       );
     }
 
@@ -249,7 +249,7 @@ export async function acceptStaffInvitation(
       )
       .limit(1);
     if (existingAssignment) {
-      throw new StaffingConflictError("You already have access to this Event.");
+      throw new StaffingConflictError("You already have access to this event.");
     }
 
     const [assignment] = await transaction
@@ -261,7 +261,7 @@ export async function acceptStaffInvitation(
       })
       .returning({ id: eventStaff.id });
     if (!assignment) {
-      throw new Error("Could not assign Event Staff.");
+      throw new Error("Could not assign event staff.");
     }
     await transaction
       .update(staffInvitation)
@@ -302,7 +302,7 @@ export async function revokeStaffInvitation(
       .where(eq(staffInvitation.id, invitationId))
       .limit(1);
     if (!located) {
-      throw new StaffInvitationUnavailableError("That Staff Invitation is no longer pending.");
+      throw new StaffInvitationUnavailableError("That staff invitation is no longer pending.");
     }
     await lockEventForMutation(transaction, located.eventId);
     const [invitation] = await transaction
@@ -312,7 +312,7 @@ export async function revokeStaffInvitation(
       .for("update")
       .limit(1);
     if (!invitation || invitation.consumedAt || invitation.revokedAt) {
-      throw new StaffInvitationUnavailableError("That Staff Invitation is no longer pending.");
+      throw new StaffInvitationUnavailableError("That staff invitation is no longer pending.");
     }
 
     const actorRole = await findActorRole(
@@ -358,7 +358,7 @@ export async function removeEventStaff(
       .for("update")
       .limit(1);
     if (!assignment || assignment.role === "owner") {
-      throw new StaffingAuthorizationError("The Event Owner cannot be removed.");
+      throw new StaffingAuthorizationError("The event owner cannot be removed.");
     }
     const actorRole = await findActorRole(transaction, assignment.eventId, actorUserId);
     assertCanManageRole(actorRole, parseInviteableStaffRole(assignment.role));
@@ -386,7 +386,7 @@ export async function proposeOwnershipTransfer(
     const actorRole = await findActorRole(transaction, eventId, actorUserId);
     if (!isEventOwner(actorRole)) {
       throw new StaffingAuthorizationError(
-        "Only the Event Owner can propose Ownership Transfer.",
+        "Only the event owner can propose ownership transfer.",
       );
     }
     const [target] = await transaction
@@ -402,7 +402,7 @@ export async function proposeOwnershipTransfer(
       .limit(1);
     if (!target) {
       throw new OwnershipTransferUnavailableError(
-        "Ownership Transfer must target an existing Organizer.",
+        "Ownership Transfer must target an existing organizer.",
       );
     }
 
@@ -430,7 +430,7 @@ export async function proposeOwnershipTransfer(
       .limit(1);
     if (activeTransfer) {
       throw new StaffingConflictError(
-        "An Ownership Transfer is already pending for this Event.",
+        "An ownership transfer is already pending for this event.",
       );
     }
     const [transfer] = await transaction
@@ -443,7 +443,7 @@ export async function proposeOwnershipTransfer(
       })
       .returning({ id: ownershipTransfer.id, expiresAt: ownershipTransfer.expiresAt });
     if (!transfer) {
-      throw new Error("Could not propose Ownership Transfer.");
+      throw new Error("Could not propose ownership transfer.");
     }
     await transaction.insert(auditEntry).values({
       eventId,
@@ -470,7 +470,7 @@ export async function acceptOwnershipTransfer(
       .limit(1);
     if (!located) {
       throw new OwnershipTransferUnavailableError(
-        "This Ownership Transfer is expired, withdrawn, or belongs to another Organizer.",
+        "This ownership transfer is expired, withdrawn, or belongs to another organizer.",
       );
     }
     await lockEventForMutation(transaction, located.eventId);
@@ -489,7 +489,7 @@ export async function acceptOwnershipTransfer(
       transfer.proposedOwnerUserId !== actorUserId
     ) {
       throw new OwnershipTransferUnavailableError(
-        "This Ownership Transfer is expired, withdrawn, or belongs to another Organizer.",
+        "This ownership transfer is expired, withdrawn, or belongs to another organizer.",
       );
     }
     const assignments = await transaction
@@ -511,7 +511,7 @@ export async function acceptOwnershipTransfer(
     );
     if (!currentOwner || !proposedOwner) {
       throw new OwnershipTransferUnavailableError(
-        "The Event staffing changed before this Ownership Transfer was accepted.",
+        "The event staffing changed before this ownership transfer was accepted.",
       );
     }
 
@@ -555,7 +555,7 @@ export async function withdrawOwnershipTransfer(
       .limit(1);
     if (!located) {
       throw new OwnershipTransferUnavailableError(
-        "This Ownership Transfer is already closed.",
+        "This ownership transfer is already closed.",
       );
     }
     await lockEventForMutation(transaction, located.eventId);
@@ -573,7 +573,7 @@ export async function withdrawOwnershipTransfer(
       transfer.expiresAt <= decidedAt
     ) {
       throw new OwnershipTransferUnavailableError(
-        "This Ownership Transfer is already closed.",
+        "This ownership transfer is already closed.",
       );
     }
     const actorRole = await findActorRole(
@@ -583,7 +583,7 @@ export async function withdrawOwnershipTransfer(
     );
     if (!isEventOwner(actorRole) || transfer.proposedByUserId !== actorUserId) {
       throw new StaffingAuthorizationError(
-        "Only the Event Owner who proposed this transfer can withdraw it.",
+        "Only the event owner who proposed this transfer can withdraw it.",
       );
     }
     await transaction
@@ -624,7 +624,7 @@ export async function getEventStaffing(
     ? parseEventStaffRole(actorAssignment.role)
     : undefined;
   if (!actorAssignment || !actorRole || actorRole === "check_in_volunteer") {
-    throw new StaffingAuthorizationError("You cannot manage staffing for this Event.");
+    throw new StaffingAuthorizationError("You cannot manage staffing for this event.");
   }
 
   // One transaction so staff, invitations, and transfers reflect the same

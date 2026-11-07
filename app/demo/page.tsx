@@ -11,7 +11,7 @@ import { DemoExperience } from "@/features/demo/demo-experience";
 import { SAMPLE_EVENT } from "@/features/demo/demo-sample";
 
 export const metadata: Metadata = {
-  title: "EventPass demo — try the full loop without signing in",
+  title: "Demo",
   description:
     "Register as a guest, watch the operations dashboard, and scan at the door. Sample data only, resets on refresh.",
 };
@@ -56,7 +56,7 @@ export default async function DemoPage() {
       <main className="flex-1 [--ticket-surround:var(--background)]">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-10">
           <div className="flex max-w-4xl flex-col gap-3">
-              <h1 className="type-section">
+              <h1 className="type-answer">
                 Your first guest, from{" "}
                 <span className="whitespace-nowrap">sign-up</span> to check-in.
               </h1>

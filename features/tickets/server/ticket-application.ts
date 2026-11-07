@@ -115,7 +115,7 @@ type TicketEmail = {
   };
   ticketCode: string;
   ticketJws: string;
-  managementToken: string;
+  managementToken: string | null;
 };
 
 type TicketApplicationDependencies = {
@@ -941,6 +941,18 @@ export function createTicketApplicationService({
       );
       const insertedFieldIds: string[] = [];
       for (const [fieldId, value] of Object.entries(validation.data.answers)) {
+        // Clearing an optional answer removes it; `value` is NOT NULL.
+        if (value == null) {
+          await transaction
+            .delete(registrationAnswer)
+            .where(
+              and(
+                eq(registrationAnswer.registrationId, managed.id),
+                eq(registrationAnswer.fieldId, fieldId),
+              ),
+            );
+          continue;
+        }
         await transaction
           .insert(registrationAnswer)
           .values({ registrationId: managed.id, fieldId, value })
@@ -970,8 +982,38 @@ export function createTicketApplicationService({
     if (!isWellFormedCapability(managementToken)) {
       return { outcome: "invalid" };
     }
+    return resendByDigest(digestBearerToken(managementToken), managementToken);
+  }
 
-    const previousManagementTokenDigest = digestBearerToken(managementToken);
+  /**
+   * For when the guest cannot use their own link: an organizer helping at the
+   * door, or a guest asking by email address. Only a digest of the link is
+   * stored, so this email carries the ticket and no link. Issuing a new link
+   * would kill the one in the guest's inbox, and anyone who knows their address
+   * could trigger that.
+   */
+  async function resendTicketForRegistration(
+    registrationId: string,
+    eventId: string,
+  ): Promise<TicketManagementResult> {
+    const [found] = await database
+      .select({ digest: registration.managementTokenDigest })
+      .from(registration)
+      .where(
+        and(
+          eq(registration.id, registrationId),
+          eq(registration.eventId, eventId),
+        ),
+      )
+      .limit(1);
+    if (!found?.digest) return { outcome: "invalid" };
+    return resendByDigest(found.digest);
+  }
+
+  async function resendByDigest(
+    previousManagementTokenDigest: string,
+    knownManagementToken: string | null = null,
+  ): Promise<TicketManagementResult> {
     let emailMessage: TicketEmail | null = null;
     let result: TicketManagementResult;
 
@@ -1042,22 +1084,6 @@ export function createTicketApplicationService({
           return { outcome: "throttled" } as const;
         }
 
-        const newManagementToken = createManagementToken();
-        const [rotated] = await transaction
-          .update(registration)
-          .set({
-            managementTokenDigest: digestBearerToken(newManagementToken),
-            updatedAt: rotatedAt,
-          })
-          .where(
-            and(
-              eq(registration.id, managed.registrationId),
-              eq(registration.managementTokenDigest, previousManagementTokenDigest),
-            ),
-          )
-          .returning({ id: registration.id });
-        if (!rotated) return { outcome: "invalid" } as const;
-
         emailMessage = {
           email: managed.email,
           attendeeName: managed.attendeeName,
@@ -1072,14 +1098,10 @@ export function createTicketApplicationService({
           },
           ticketCode: activeTicket.code,
           ticketJws: activeTicket.signedPayload,
-          managementToken: newManagementToken,
+          managementToken: knownManagementToken,
         };
 
-        return {
-          outcome: "sent",
-          deliveryStatus: "sent",
-          managementToken: newManagementToken,
-        } as const;
+        return { outcome: "sent", deliveryStatus: "sent" } as const;
       });
     } catch (error) {
       if (error instanceof EventSuspendedError) {
@@ -1236,9 +1258,32 @@ export function createTicketApplicationService({
     managementToken: string,
   ): Promise<TicketManagementResult> {
     if (!isWellFormedCapability(managementToken)) return { outcome: "invalid" };
+    return cancelByDigest(digestBearerToken(managementToken));
+  }
+
+  async function cancelRegistrationById(
+    registrationId: string,
+    eventId: string,
+  ): Promise<TicketManagementResult> {
+    const [found] = await database
+      .select({ digest: registration.managementTokenDigest })
+      .from(registration)
+      .where(
+        and(
+          eq(registration.id, registrationId),
+          eq(registration.eventId, eventId),
+        ),
+      )
+      .limit(1);
+    if (!found?.digest) return { outcome: "invalid" };
+    return cancelByDigest(found.digest);
+  }
+
+  async function cancelByDigest(
+    previousManagementTokenDigest: string,
+  ): Promise<TicketManagementResult> {
     const canceledAt = now();
     let offerMessages: AdmissionOfferMessage[] = [];
-    const previousManagementTokenDigest = digestBearerToken(managementToken);
     let result: TicketManagementResult;
     try {
       result = await database.transaction(async (transaction) => {
@@ -1351,6 +1396,8 @@ export function createTicketApplicationService({
     getManagementView,
     updateRegistration,
     resendTicket,
+    resendTicketForRegistration,
+    cancelRegistrationById,
     replaceTicket,
     cancelRegistration,
   };

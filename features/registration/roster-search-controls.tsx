@@ -58,8 +58,8 @@ export function RosterSearchControls({
         value={query}
         onChange={setQuery}
         pending={isPending}
-        label="Search registrations by guest name or email"
-        placeholder="Search name or email"
+        label="Search guests by name, email, or ticket code"
+        placeholder="Search name, email, or ticket code"
       />
 
       <SegmentedFilter

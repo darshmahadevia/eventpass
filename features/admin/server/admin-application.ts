@@ -243,7 +243,7 @@ export async function suspendEvent({
       .where(and(eq(event.id, eventId), eq(event.suspended, false)))
       .returning({ id: event.id });
     if (!updated) {
-      throw new PlatformAdminError("That Event is not open for suspension.");
+      throw new PlatformAdminError("That event is not open for suspension.");
     }
 
     await tx.insert(auditEntry).values({
@@ -283,7 +283,7 @@ export async function reactivateEvent({
       .where(and(eq(event.id, eventId), eq(event.suspended, true)))
       .returning({ id: event.id });
     if (!updated) {
-      throw new PlatformAdminError("That Event is not suspended.");
+      throw new PlatformAdminError("That event is not suspended.");
     }
 
     await tx.insert(auditEntry).values({
@@ -338,7 +338,7 @@ export async function grantSupportAccess({
       .where(eq(event.id, eventId))
       .limit(1);
     if (!targetEvent) {
-      throw new PlatformAdminError("That Event does not exist.");
+      throw new PlatformAdminError("That event does not exist.");
     }
 
     const [accessRecord] = await tx
@@ -352,7 +352,7 @@ export async function grantSupportAccess({
       })
       .returning();
     if (!accessRecord) {
-      throw new Error("Could not grant Support Access.");
+      throw new Error("Could not grant support access.");
     }
 
     await tx.insert(auditEntry).values({
@@ -387,7 +387,7 @@ export async function revokeSupportAccess({
     const [located] = await tx.select({ eventId: supportAccess.eventId })
       .from(supportAccess).where(eq(supportAccess.id, supportAccessId)).limit(1);
     if (!located) {
-      throw new SupportAccessRequiredError("That Support Access grant is already closed.");
+      throw new SupportAccessRequiredError("That support access grant is already closed.");
     }
     await lockEvent(tx, located.eventId);
 
@@ -405,7 +405,7 @@ export async function revokeSupportAccess({
       .limit(1);
     if (!activeAccess) {
       throw new SupportAccessRequiredError(
-        "That Support Access grant is already closed.",
+        "That support access grant is already closed.",
       );
     }
 

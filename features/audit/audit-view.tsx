@@ -31,21 +31,43 @@ import { formatTicketCode, isTicketCode } from "@/features/tickets/ticket-code";
 
 // The whole product writes a Ticket Code grouped, because that is how a person
 // reads one aloud. The audit log printed it as ten unbroken characters.
-function formatAuditTarget(value: string) {
-  return isTicketCode(value) ? formatTicketCode(value) : value;
+function sentenceCase(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-// One clock format across the product: 24-hour, seconds, no lowercase meridiem.
-// This column is read by comparison against the scanner and the roster, and
-// `31 Jul 03:27:48 pm` matched neither of them.
+function formatAuditTarget(value: string) {
+  if (isTicketCode(value)) return formatTicketCode(value);
+  // Internal references arrive as `staff_invitation:4a467a71`.
+  const [, kind, id] = /^([a-z_]+):(\S+)$/.exec(value) ?? [];
+  if (!kind || !id) return value;
+  return `${sentenceCase(kind.replaceAll("_", " "))} ${id.slice(0, 8)}`;
+}
+
+// Stored metadata keys are field names. Written out, `normalizedEmail:
+// check_in_volunteer` reads as a database row rather than a sentence.
+function formatAuditDetail(key: string, value: unknown) {
+  const label = key
+    .replace(/^normalized/, "")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]/g, " ")
+    .trim()
+    .toLowerCase();
+  const text =
+    typeof value === "string" && /^[a-z]+(_[a-z]+)+$/.test(value)
+      ? value.replaceAll("_", " ")
+      : String(value);
+  return `${sentenceCase(label)}: ${text}`;
+}
+
+// Seconds stay: this column is compared against the scanner to settle disputes.
+// Otherwise it reads like every other date in the product.
 function formatAuditTimestamp(date: Date, timeZone: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
+  return new Intl.DateTimeFormat("en", {
     month: "short",
-    hour: "2-digit",
+    day: "numeric",
+    hour: "numeric",
     minute: "2-digit",
     second: "2-digit",
-    hour12: false,
     timeZone,
     timeZoneName: "short",
   }).format(date);
@@ -93,15 +115,15 @@ export function AuditView({
       {log.records.length > 0 ? (
         <>
           <div className="overflow-hidden panel">
-            <Table className="text-xs">
+            <Table stack className="text-xs">
               <TableHeader className="bg-muted/50 text-muted-foreground">
                 <TableRow>
-                  <TableHead scope="col">Timestamp</TableHead>
-                  <TableHead scope="col">Actor</TableHead>
+                  <TableHead scope="col">Time</TableHead>
+                  <TableHead scope="col">Who</TableHead>
                   <TableHead scope="col">Action</TableHead>
-                  <TableHead scope="col">Target</TableHead>
+                  <TableHead scope="col">About</TableHead>
                   <TableHead scope="col">Source</TableHead>
-                  <TableHead scope="col">Reason</TableHead>
+                  <TableHead scope="col">Details</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -114,22 +136,27 @@ export function AuditView({
 
                   return (
                     <TableRow key={record.id}>
-                      <TableCell className="text-muted-foreground tabular-nums">
+                      <TableCell
+                        data-label="Time"
+                        className="text-muted-foreground tabular-nums"
+                      >
                         <time dateTime={record.createdAt}>
                           {formatAuditTimestamp(date, eventTimeZone)}
                         </time>
                       </TableCell>
 
-                      <TableCell className="font-medium">
+                      <TableCell data-label="Who" className="font-medium">
+                        <div>
                         <div>{record.actorName}</div>
                         {record.actorEmail ? (
                           <div className="text-xs text-muted-foreground">
                             {record.actorEmail}
                           </div>
                         ) : null}
+                        </div>
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell data-label="Action">
                         <Badge
                           variant={
                             isConflictOrReversal
@@ -144,13 +171,13 @@ export function AuditView({
                         </Badge>
                       </TableCell>
 
-                      <TableCell className="font-mono">
+                      <TableCell data-label="About" className="wrap-anywhere">
                         {formatAuditTarget(record.targetLabel ?? record.targetId)}
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell data-label="Source">
                         <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1">
+                          <div className="flex flex-wrap items-center gap-1">
                             <Badge
                               variant={
                                 record.source === "offline" ? "outline" : "secondary"
@@ -179,7 +206,10 @@ export function AuditView({
                         </div>
                       </TableCell>
 
-                      <TableCell className="max-w-xs whitespace-normal text-muted-foreground">
+                      <TableCell
+                        data-label="Details"
+                        className="max-w-xs whitespace-normal text-muted-foreground"
+                      >
                         {record.reason ? (
                           <span className="text-foreground">{record.reason}</span>
                         ) : record.metadata &&
@@ -188,9 +218,8 @@ export function AuditView({
                           // facts, read as a sentence instead of as a payload.
                           <span>
                             {Object.entries(record.metadata)
-                              .map(
-                                ([key, value]) =>
-                                  `${key.replace(/[_-]/g, " ")}: ${String(value)}`,
+                              .map(([key, value]) =>
+                                formatAuditDetail(key, value),
                               )
                               .join(" · ")}
                           </span>

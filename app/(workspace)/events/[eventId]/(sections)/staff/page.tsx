@@ -104,8 +104,7 @@ export default async function EventStaffPage({
       <div className="flex flex-col gap-2">
         <h1 className="type-page">Staff</h1>
         <p className="max-w-2xl text-support text-muted-foreground">
-          Assign access to this event only. Every invitation, role change,
-          removal, and ownership change is kept permanently.
+          Who can work on this event. Access only ever applies to this event.
         </p>
       </div>
 
@@ -114,8 +113,8 @@ export default async function EventStaffPage({
           <IconShieldCheck aria-hidden="true" />
           <AlertTitle>Event currently unavailable</AlertTitle>
           <AlertDescription>
-            Staffing changes are temporarily paused. Existing staff and
-            read-only Event history remain available.
+            Staff changes are paused for now. Everyone keeps their current
+            access.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -123,14 +122,14 @@ export default async function EventStaffPage({
       {query.error ? (
         <Alert variant="destructive">
           <IconShieldCheck aria-hidden="true" />
-          <AlertTitle>Staffing not changed</AlertTitle>
+          <AlertTitle>That did not work</AlertTitle>
           <AlertDescription>{query.error}</AlertDescription>
         </Alert>
       ) : null}
       {query.notice ? (
         <Alert>
           <IconUserCheck aria-hidden="true" />
-          <AlertTitle>Staffing updated</AlertTitle>
+          <AlertTitle>Done</AlertTitle>
           <AlertDescription>{query.notice}</AlertDescription>
         </Alert>
       ) : null}
@@ -147,10 +146,10 @@ export default async function EventStaffPage({
             const removable =
               member.role !== "owner" && canManageRole(staffing.actorRole, member.role);
             return (
-              <li key={member.assignmentId} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <li key={member.assignmentId} className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">{member.name}</p>
+                    <p className="font-medium wrap-anywhere">{member.name}</p>
                     <Badge variant={member.role === "owner" ? "default" : "secondary"}>
                       {ROLE_LABELS[member.role]}
                     </Badge>
@@ -169,14 +168,14 @@ export default async function EventStaffPage({
         </ul>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-2">
         <div className="panel p-5 sm:p-6">
           <div className="mb-6 flex items-start gap-3">
             <IconMailForward aria-hidden="true" className="mt-0.5 size-5" />
             <div>
               <h2 className="text-lg font-headline">Send an invitation</h2>
               <p className="mt-1 text-support text-muted-foreground">
-                The single-use link is bound to this email and expires after 24 hours.
+                They get a link that works for 24 hours.
               </p>
             </div>
           </div>
@@ -184,7 +183,17 @@ export default async function EventStaffPage({
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="invitation-email">Email address</FieldLabel>
-                <Input id="invitation-email" name="email" type="email" autoCapitalize="none" required />
+                <Input
+                  id="invitation-email"
+                  name="email"
+                  type="email"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="name@example.com"
+                  required
+                />
               </Field>
               <Field>
                 <FieldLabel htmlFor="invitation-role">Role</FieldLabel>
@@ -211,10 +220,10 @@ export default async function EventStaffPage({
                   </SelectContent>
                 </Select>
                 <FieldDescription>
-                  Organizers manage configuration and volunteers. Check-in volunteers receive admission access only.
+                  Volunteers can only scan tickets. Organizers can also change the event and manage staff.
                 </FieldDescription>
               </Field>
-              <FormSubmitButton pendingLabel="Sending invitation">
+              <FormSubmitButton pendingLabel="Sending invitation" className="sm:self-start">
                 Send invitation
               </FormSubmitButton>
             </FieldGroup>
@@ -227,17 +236,17 @@ export default async function EventStaffPage({
             <div>
               <h2 className="text-lg font-headline">Pending invitations</h2>
               <p className="mt-1 text-support text-muted-foreground">
-                Revoke any invitation that should no longer grant access.
+                Waiting to be accepted.
               </p>
             </div>
           </div>
           {staffing.invitations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No invitations are waiting to be accepted.</p>
+            <p className="text-sm text-muted-foreground">Nobody is waiting. Invitations you send appear here.</p>
           ) : (
             <ul className="flex flex-col gap-4">
               {staffing.invitations.map((invitation) => (
-                <li key={invitation.id} className="flex flex-col gap-3 rounded-xl border p-4">
-                  <div>
+                <li key={invitation.id} className="flex items-center justify-between gap-3 rounded-xl border p-3 sm:p-4">
+                  <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{invitation.normalizedEmail}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {ROLE_LABELS[invitation.role]} · expires {formatDeadline(invitation.expiresAt, staffing.eventTimeZone)}
@@ -250,7 +259,7 @@ export default async function EventStaffPage({
                         variant="outline"
                         pendingLabel="Revoking invitation"
                       >
-                        Revoke invitation
+                        Revoke
                       </FormSubmitButton>
                     </form>
                   ) : null}
@@ -315,11 +324,12 @@ export default async function EventStaffPage({
                       </SelectContent>
                     </Select>
                     <FieldDescription>
-                      The proposal expires after 24 hours. Ownership changes only when that organizer accepts.
+                      They have 24 hours to accept. Nothing changes until they do.
                     </FieldDescription>
                   </Field>
                   <FormSubmitButton
                     variant="outline"
+                    className="sm:self-start"
                     pendingLabel="Proposing transfer"
                   >
                     Propose transfer

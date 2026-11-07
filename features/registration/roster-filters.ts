@@ -12,6 +12,7 @@ export const ROSTER_FILTERS = [
   "unconfirmed",
   "expired",
   "canceled",
+  "email_failed",
 ] as const;
 
 export type RosterFilter = (typeof ROSTER_FILTERS)[number];
@@ -24,6 +25,7 @@ export const ROSTER_FILTER_LABELS: Record<RosterFilter, string> = {
   unconfirmed: "Unconfirmed",
   expired: "Expired",
   canceled: "Canceled",
+  email_failed: "Email failed",
 };
 
 export function parseRosterFilter(value: string | undefined): RosterFilter {

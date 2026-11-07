@@ -26,6 +26,7 @@ type ActionResult =
 
 export function ReasonedCheckInAction({
   label,
+  triggerLabel,
   title,
   description,
   reasonDescription,
@@ -35,6 +36,8 @@ export function ReasonedCheckInAction({
   quietTrigger = false,
 }: {
   label: string;
+  /** Shorter wording where a row has little room. The confirm keeps `label`. */
+  triggerLabel?: string;
   title: string;
   description: string;
   reasonDescription: string;
@@ -80,7 +83,7 @@ export function ReasonedCheckInAction({
         render={<Button variant={quietTrigger ? "outline" : variant} />}
       >
         <IconRotate data-icon="inline-start" />
-        {label}
+        {triggerLabel ?? label}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <form onSubmit={submit} className="contents">
@@ -89,7 +92,7 @@ export function ReasonedCheckInAction({
             <AlertDialogDescription>{description}</AlertDialogDescription>
           </AlertDialogHeader>
           <Field>
-            <FieldLabel htmlFor={reasonId}>Reason</FieldLabel>
+            <FieldLabel htmlFor={reasonId}>Reason (required)</FieldLabel>
             <Textarea
               id={reasonId}
               value={reason}
@@ -98,7 +101,7 @@ export function ReasonedCheckInAction({
               minLength={1}
               maxLength={500}
               autoFocus
-              placeholder="Record why this correction is necessary."
+              placeholder="For example, scanned the wrong ticket"
             />
             <FieldDescription>{reasonDescription}</FieldDescription>
           </Field>
@@ -109,7 +112,7 @@ export function ReasonedCheckInAction({
             </Alert>
           ) : null}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={pending}>Keep check-in</AlertDialogCancel>
+            <AlertDialogCancel disabled={pending}>Never mind</AlertDialogCancel>
             {/* Quiet to reach for, loud to commit: the trigger stays tinted so
                 a row of them does not scream, but the confirm is solid because
                 this is the irreversible half. */}

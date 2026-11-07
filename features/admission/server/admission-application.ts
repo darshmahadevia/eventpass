@@ -42,6 +42,8 @@ export type AdmissionOutcome =
   | "outside_window"
   | "event_unavailable"
   | "snapshot_stale"
+  | "no_guest_list"
+  | "signed_out"
   | "unauthorized";
 
 export type AdmissionResult = {
@@ -277,7 +279,7 @@ export function createAdmissionApplicationService({
           eq(ticket.id, verification.payload.ticketId),
         );
       }
-      if (!ticketCondition) throw new Error("Could not look up the Ticket.");
+      if (!ticketCondition) throw new Error("Could not look up the ticket.");
       const [presentedTicket] = await transaction
         .select({
           id: ticket.id,
@@ -407,7 +409,7 @@ export function createAdmissionApplicationService({
           checkedInAt: attemptedAt,
         })
         .returning({ id: checkIn.id, checkedInAt: checkIn.checkedInAt });
-      if (!createdCheckIn) throw new Error("Could not record the Check-in.");
+      if (!createdCheckIn) throw new Error("Could not record the check-in.");
       await transaction.insert(scanAttempt).values({
         id: clientAttemptId,
         eventId,

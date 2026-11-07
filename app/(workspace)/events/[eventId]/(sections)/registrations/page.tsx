@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
-import { IconDownload } from "@tabler/icons-react";
+import { IconDownload, IconUpload } from "@tabler/icons-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -15,10 +15,13 @@ import {
   encodeRosterCursor,
 } from "@/features/registration/server/get-event-roster";
 import { queryEventRoster } from "@/features/registration/server/event-roster";
+import { getOrganizerRegistrationForm } from "@/features/registration/server/registration-form";
+import { AddGuestDialog } from "@/features/registration-import/add-guest-dialog";
 import { RegistrationImportWorkspace } from "@/features/registration-import/registration-import-workspace";
 import { getActiveStaffSession } from "@/lib/staff-session";
+import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Registrations" };
+export const metadata: Metadata = { title: "Guests" };
 
 type RegistrationsSearchParams = {
   q?: string;
@@ -40,6 +43,21 @@ export default async function RegistrationsPage(props: {
   const currentEvent = await getOrganizerEvent(eventId, session.user.id);
   if (!currentEvent) notFound();
 
+  const formFields = await getOrganizerRegistrationForm(
+    currentEvent.id,
+    session.user.id,
+  );
+  const requiredQuestions = formFields
+    .filter((field) => field.required && !field.archived)
+    .map((field) => ({
+      id: field.id,
+      label: field.label,
+      answerType: field.answerType,
+      choices: field.choices
+        .filter((choice) => !choice.archived)
+        .map(({ id, label }) => ({ id, label })),
+    }));
+
   const searchQuery = query.q?.trim() ?? "";
   const filter = parseRosterFilter(query.status);
   const basePath = `/events/${currentEvent.id}/registrations`;
@@ -48,18 +66,40 @@ export default async function RegistrationsPage(props: {
     <>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="type-page">Registrations</h1>
+          <h1 className="type-page">Guests</h1>
           <p className="mt-2 max-w-2xl text-support text-muted-foreground">
             Everyone who registered, and whether they have arrived.
           </p>
         </div>
-        <a
-          href={`/api/events/${encodeURIComponent(currentEvent.id)}/registrations/export`}
-          className={buttonVariants({ variant: "outline" })}
-        >
-          <IconDownload data-icon="inline-start" />
-          Export CSV
-        </a>
+        <div className="flex flex-wrap gap-2">
+          {currentEvent.status === "published" ? (
+            <AddGuestDialog
+              eventId={currentEvent.id}
+              requiredQuestions={requiredQuestions}
+              className="max-sm:w-full"
+            />
+          ) : null}
+          <a
+            href="#import-guests"
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "max-sm:flex-1",
+            )}
+          >
+            <IconUpload data-icon="inline-start" />
+            Import
+          </a>
+          <a
+            href={`/api/events/${encodeURIComponent(currentEvent.id)}/registrations/export`}
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "max-sm:flex-1",
+            )}
+          >
+            <IconDownload data-icon="inline-start" />
+            Export CSV
+          </a>
+        </div>
       </div>
 
       <RosterSearchControls activeFilter={filter} initialQuery={searchQuery} />
@@ -145,6 +185,7 @@ async function RosterResults({
   return (
     <RosterTable
       roster={roster}
+      eventId={eventId}
       eventTimeZone={eventTimeZone}
       nextHref={nextHref}
       hasActiveSearch={searchQuery.length > 0 || filter !== "all"}

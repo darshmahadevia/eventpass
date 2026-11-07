@@ -51,6 +51,7 @@ export const metadata: Metadata = {
 // the OS, while the product answers the stored preference. THEME_SCRIPT below
 // re-points them once a viewer has chosen.
 export const viewport: Viewport = {
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fcfdfe" },
     { media: "(prefers-color-scheme: dark)", color: "#090c11" },

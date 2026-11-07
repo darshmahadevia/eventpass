@@ -16,7 +16,7 @@ export class InvalidAdminReasonError extends PlatformAdminError {
 
 export class SupportAccessRequiredError extends PlatformAdminError {
   constructor(
-    message = "Active, reasoned Support Access is required to inspect attendee data.",
+    message = "Active, reasoned support access is required to inspect attendee data.",
   ) {
     super(message);
     this.name = "SupportAccessRequiredError";

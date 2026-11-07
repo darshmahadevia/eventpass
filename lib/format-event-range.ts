@@ -25,3 +25,20 @@ export function formatEventRange(startsAt: Date, endsAt: Date, timeZone: string)
     endsAt,
   );
 }
+
+/**
+ * A schedule for a list row or a ticket, where space is short. One day reads
+ * "Fri, Nov 6, 9:05 AM – 1:05 PM EST"; `formatRange` alone turned an event that
+ * crosses midnight into "13 Fri, 10:06 PM – 14 Sat", with no month at all.
+ */
+export function formatCompactRange(startsAt: Date, endsAt: Date, timeZone: string) {
+  return new Intl.DateTimeFormat("en", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+    timeZoneName: "short",
+  }).formatRange(startsAt, endsAt);
+}

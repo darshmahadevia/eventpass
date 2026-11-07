@@ -24,6 +24,7 @@ import {
   type StaffEvent,
 } from "@/features/events/server/list-staff-events";
 import { staffEventHomePath } from "@/features/staffing/staffing-policy";
+import { formatCompactRange } from "@/lib/format-event-range";
 import { getActiveStaffSession } from "@/lib/staff-session";
 import { cn } from "@/lib/utils";
 
@@ -46,13 +47,7 @@ function formatPart(
 }
 
 function formatTimes({ startsAt, endsAt, eventTimeZone }: StaffEvent) {
-  return new Intl.DateTimeFormat("en", {
-    weekday: "short",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: eventTimeZone,
-    timeZoneName: "short",
-  }).formatRange(startsAt, endsAt);
+  return formatCompactRange(startsAt, endsAt, eventTimeZone);
 }
 
 // Sorted by what the person has to do next, not by date alone: a door that is
@@ -90,7 +85,7 @@ function LiveEvent({ item }: { item: StaffEvent }) {
     : 0;
 
   return (
-    <article className="poster-surface signal-surface relative overflow-hidden rounded-[var(--radius-overlay)] bg-poster-confirmed p-6 text-poster-ink sm:p-8">
+    <article className="poster-surface signal-surface relative overflow-hidden rounded-[var(--radius-overlay)] bg-poster-confirmed p-5 text-poster-ink sm:p-8">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div className="flex min-w-0 flex-col gap-3">
           <p className="text-sm font-semibold">Doors are open</p>
@@ -98,13 +93,15 @@ function LiveEvent({ item }: { item: StaffEvent }) {
             <h2 className="type-answer">{item.name}</h2>
           </ViewTransition>
           <p className="text-sm">
-            {formatTimes(item)}, {item.venueName}
+            {formatTimes(item)}
+            <br />
+            {item.venueName}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <PendingLink
             href={`/scanner/${item.id}`}
-            className={buttonVariants({ size: "lg" })}
+            className={cn(buttonVariants({ size: "lg" }), "max-sm:flex-1")}
             pendingLabel="Opening scanner"
           >
             <IconScan data-icon="inline-start" />
@@ -115,7 +112,7 @@ function LiveEvent({ item }: { item: StaffEvent }) {
               href={staffEventHomePath(item.role, item.id)}
               className={cn(
                 buttonVariants({ variant: "outline", size: "lg" }),
-                "border-poster-ink/50 bg-transparent hover:bg-poster-ink/10",
+                "border-poster-ink/50 bg-transparent hover:bg-poster-ink/10 max-sm:flex-1",
               )}
               pendingLabel="Opening event"
             >
@@ -159,43 +156,44 @@ function EventRow({ item, dimmed }: { item: StaffEvent; dimmed?: boolean }) {
       {/* The stub: when it happens, read first, the way a ticket is. */}
       <div
         className={cn(
-          "flex w-20 shrink-0 flex-col items-center justify-center border-r border-dashed py-4 text-center sm:w-24",
+          "flex w-16 shrink-0 flex-col items-center justify-center border-r border-dashed py-4 text-center sm:w-24",
           dimmed && "text-muted-foreground",
         )}
       >
         <span className="text-xs font-semibold">
           {formatPart(startsAt, timeZone, { month: "short" })}
         </span>
-        <span className="text-3xl leading-none font-extrabold tabular-nums">
+        <span className="text-2xl leading-none font-extrabold tabular-nums sm:text-3xl">
           {formatPart(startsAt, timeZone, { day: "numeric" })}
         </span>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-6 sm:px-6">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <ViewTransition name={`event-${item.id}`}>
-              <h3 className="min-w-0 truncate text-lg font-headline">
-                <PendingLink
-                  href={staffEventHomePath(item.role, item.id)}
-                  pendingLabel={`Opening ${item.name}`}
-                  // Stretched across the row, so the whole row is the target.
-                  className="outline-none before:absolute before:inset-0 before:content-[''] focus-visible:before:ring-3 focus-visible:before:ring-ring/40 focus-visible:before:ring-inset"
-                >
-                  {item.name}
-                </PendingLink>
-              </h3>
-            </ViewTransition>
-            {canceled ? <Badge variant="destructive">Canceled</Badge> : null}
+      <div className="flex min-w-0 flex-1 items-center gap-3 p-4 sm:gap-6 sm:px-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-3 md:flex-row md:items-center md:gap-6">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <ViewTransition name={`event-${item.id}`}>
+                <h3 className="min-w-0 text-lg leading-snug font-headline">
+                  <PendingLink
+                    href={staffEventHomePath(item.role, item.id)}
+                    pendingLabel={`Opening ${item.name}`}
+                    // Stretched across the row, so the whole row is the target.
+                    className="outline-none before:absolute before:inset-0 before:content-[''] focus-visible:before:ring-3 focus-visible:before:ring-ring/40 focus-visible:before:ring-inset"
+                  >
+                    {item.name}
+                  </PendingLink>
+                </h3>
+              </ViewTransition>
+              {canceled ? <Badge variant="destructive">Canceled</Badge> : null}
+            </div>
+            <p className="mt-1 text-sm text-pretty text-muted-foreground">
+              {formatTimes(item)}
+            </p>
+            <p className="text-sm text-muted-foreground">{item.venueName}</p>
           </div>
-          <p className="mt-0.5 truncate text-sm text-muted-foreground">
-            {formatTimes(item)}, {item.venueName}
-          </p>
-        </div>
 
-        <div className="flex items-center gap-6 sm:w-64 sm:shrink-0">
           {canceled ? null : (
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 md:w-48 md:shrink-0">
               <p className="text-sm tabular-nums">
                 <span className="font-semibold">{item.confirmed}</span>
                 <span className="text-muted-foreground">
@@ -214,14 +212,16 @@ function EventRow({ item, dimmed }: { item: StaffEvent; dimmed?: boolean }) {
               </div>
             </div>
           )}
-          <span className="ml-auto hidden text-xs text-muted-foreground xl:block">
-            {ROLE_LABELS[item.role] ?? item.role}
-          </span>
-          <IconArrowRight
-            aria-hidden="true"
-            className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-          />
         </div>
+        {item.role === "check_in_volunteer" ? (
+          <span className="hidden text-sm text-muted-foreground sm:block">
+            {ROLE_LABELS[item.role]}
+          </span>
+        ) : null}
+        <IconArrowRight
+          aria-hidden="true"
+          className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+        />
       </div>
     </li>
   );
@@ -264,7 +264,7 @@ export default async function EventsPage() {
   const { live, upcoming, drafts, finished } = groupEvents(events, currentTime());
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-12">
+    <main id="main" tabIndex={-1} className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-12">
       <div className="flex items-center justify-between gap-4">
         <h1 className="type-page">Events</h1>
         <PendingLink
@@ -286,7 +286,8 @@ export default async function EventsPage() {
             <EmptyTitle>Your first event starts here</EmptyTitle>
             <EmptyDescription>
               Start with a draft. Nothing is visible to guests until you
-              publish it.
+              publish it. If someone invited you to work a door, open the link
+              in your invitation email.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
@@ -307,7 +308,7 @@ export default async function EventsPage() {
           ))}
           <EventGroup title="Coming up" events={upcoming} />
           <EventGroup title="Drafts" events={drafts} />
-          <EventGroup title="Finished" events={finished} dimmed />
+          <EventGroup title="Past and canceled" events={finished} dimmed />
         </>
       )}
     </main>

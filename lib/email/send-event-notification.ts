@@ -122,7 +122,7 @@ export async function sendEventNotification(deliveryId: string) {
   const metadata = notificationSchema.parse(delivery.metadata);
   const message = content(metadata);
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) throw new Error("RESEND_API_KEY is required to send Event notifications.");
+  if (!apiKey) throw new Error("RESEND_API_KEY is required to send event notifications.");
   const attempt = delivery.attemptCount + 1;
   let response;
   try {

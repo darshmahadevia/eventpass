@@ -46,7 +46,7 @@ async function authorizeOrganizer(
 
   if (!authorization) {
     throw new RegistrationFormNotEditableError(
-      "Only an Organizer can configure this Event's Registration form.",
+      "Only an organizer can configure this event's registration form.",
     );
   }
 }
@@ -135,7 +135,7 @@ export async function saveRegistrationForm(
         .where(inArray(registrationField.id, incomingFieldIds));
       if (identityCollisions.some((field) => field.eventId !== eventId)) {
         throw new RegistrationFormInvariantError(
-          "A Registration Field identity cannot move between Events.",
+          "A Registration Field identity cannot move between events.",
         );
       }
     }
@@ -181,7 +181,7 @@ export async function saveRegistrationForm(
         )
       ) {
         throw new RegistrationFormInvariantError(
-          "A choice identity cannot move between Registration Fields.",
+          "A choice identity cannot move between registration Fields.",
         );
       }
     }

@@ -184,7 +184,12 @@ export async function getEventAuditLog({
       'ticket'::text as target_type,
       coalesce(sa.ticket_id::text, 'unknown')::text as target_id,
       (case when sa.ticket_id is null then 'Unrecognized code'
-            else 'ticket:' || left(sa.ticket_id::text, 8) end)::text as target_label,
+            else coalesce(
+              (select r.attendee_name from ticket t
+                 join registration r on r.id = t.registration_id
+                where t.id = sa.ticket_id),
+              'ticket:' || left(sa.ticket_id::text, 8)
+            ) end)::text as target_label,
       null::text as reason,
       sa.source::text as source,
       sa.timestamp_confidence::text as timestamp_confidence,
@@ -320,6 +325,8 @@ function formatAuditActionLabel(action: string): string {
     "check_in.reversed": "Check-in reversed",
     "check_in_conflict.resolved": "Conflict resolved",
     "registration_import.completed": "Registrations imported",
+    "registration.corrected": "Guest details corrected",
+    "registration.canceled_by_organizer": "Registration canceled by organizer",
     admission_override: "Check-in window overridden",
   };
 

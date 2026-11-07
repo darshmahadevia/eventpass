@@ -82,7 +82,7 @@ export class SnapshotReplacementRequiredError extends Error {
     currentEventName: string,
     pendingAttemptCount: number,
   ) {
-    super(`The cached Offline Event Snapshot belongs to ${currentEventName}.`);
+    super(`The cached Offline event Snapshot belongs to ${currentEventName}.`);
     this.name = "SnapshotReplacementRequiredError";
     this.currentEventId = currentEventId;
     this.currentEventName = currentEventName;

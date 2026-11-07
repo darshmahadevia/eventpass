@@ -120,7 +120,7 @@ export function AdminDashboard({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <main id="main" tabIndex={-1} className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       {/* The signed-in address is in the header now, once. */}
       <div className="flex flex-col gap-1">
         <h1 className="type-page">Administration</h1>

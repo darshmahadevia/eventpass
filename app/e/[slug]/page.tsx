@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { EventPublicDetails } from "@/features/events/event-public-details";
+import {
+  EventPublicDetails,
+  type RegistrationPhase,
+} from "@/features/events/event-public-details";
+import { getActiveCapacityUsage } from "@/features/events/server/capacity-ledger";
 import { getPublishedEvent } from "@/features/events/server/get-event";
+import { db } from "@/lib/db";
 import { AttendeeRegistrationForm } from "@/features/registration/attendee-registration-form";
 import { getPublicRegistrationForm } from "@/features/registration/server/get-public-registration-form";
 
@@ -33,31 +38,30 @@ export default async function PublicEventPage({
 
   const fields = await getPublicRegistrationForm(event.id);
   const now = new Date();
-  const registrationIsOpen =
-    !event.suspended &&
-    event.status === "published" &&
-    now >= event.registrationOpensAt &&
-    now < event.registrationClosesAt;
+  const phase: RegistrationPhase =
+    event.status === "canceled"
+      ? "canceled"
+      : event.suspended
+        ? "unavailable"
+        : now >= event.endsAt
+          ? "over"
+          : now < event.registrationOpensAt
+            ? "not-open"
+            : now >= event.registrationClosesAt
+              ? "closed"
+              : "open";
+
+  const usage = await getActiveCapacityUsage(db, event.id, now);
 
   return (
     <EventPublicDetails
       event={event}
+      phase={phase}
+      full={usage.claimed >= event.capacity}
       registration={
-        event.status === "canceled" ? (
-          <div role="status">
-            <p className="text-support">{event.cancellationReason}</p>
-            <p className="mt-2 text-support text-muted-foreground">
-              Registration and check-in are closed, and existing tickets no
-              longer work.
-            </p>
-          </div>
-        ) : registrationIsOpen ? (
+        phase === "open" ? (
           <AttendeeRegistrationForm slug={slug} fields={fields} />
-        ) : (
-          <p className="text-support text-muted-foreground">
-            Registration is not currently open for this event.
-          </p>
-        )
+        ) : null
       }
     />
   );

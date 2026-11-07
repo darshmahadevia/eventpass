@@ -3,7 +3,10 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { getPublishedEvent } from "@/features/events/server/get-event";
+import { findConfirmedRegistration } from "@/features/registration/server/get-public-registration-form";
 import { submitRegistration } from "@/features/registration/server/submit-registration";
+import { resendTicketForRegistration } from "@/features/tickets/server/tickets";
 
 import type { RegistrationActionState } from "./form-state";
 
@@ -12,6 +15,30 @@ export type { RegistrationActionState };
 function stringValue(formData: FormData, name: string) {
   const value = formData.get(name);
   return typeof value === "string" ? value : "";
+}
+
+/**
+ * Answers the same way whether or not the address has a ticket, so this can't
+ * be used to learn who is coming.
+ */
+export async function requestTicketEmailAction(
+  slug: string,
+  _previousMessage: string,
+  formData: FormData,
+): Promise<string> {
+  const email = stringValue(formData, "email").trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(email)) return "Enter your full email address.";
+
+  const event = await getPublishedEvent(slug);
+  if (event) {
+    const registrationId = await findConfirmedRegistration(event.id, email);
+    if (registrationId) {
+      await resendTicketForRegistration(registrationId, event.id).catch(
+        () => undefined,
+      );
+    }
+  }
+  return "If that address has a ticket, it is on its way. Check your spam folder too.";
 }
 
 export async function submitRegistrationAction(
@@ -50,7 +77,7 @@ export async function submitRegistrationAction(
   } catch {
     return {
       status: "error",
-      message: "Your Registration could not be submitted. Try again.",
+      message: "Your registration could not be sent. Try again.",
       values,
     };
   }
@@ -69,21 +96,21 @@ export async function submitRegistrationAction(
   if (result.outcome === "rate_limited") {
     return {
       status: "error",
-      message: "Your Registration could not be submitted right now. Try again later.",
+      message: "Too many tries with this email. Wait an hour, or use Get your ticket again below.",
       values,
     };
   }
   if (result.outcome === "registration_closed") {
     return {
       status: "error",
-      message: "Registration is not currently open for this Event.",
+      message: "Registration is not currently open for this event.",
       values,
     };
   }
   if (result.outcome === "event_unavailable") {
     return {
       status: "error",
-      message: "This Event is currently unavailable.",
+      message: "This event is currently unavailable.",
       values,
     };
   }

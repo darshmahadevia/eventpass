@@ -26,6 +26,7 @@ import { listActiveCheckIns } from "@/features/admission/server/check-in-correct
 import { ReasonedCheckInAction } from "@/features/admission/reasoned-check-in-action";
 import { ActiveCheckInSearch } from "@/features/admission/active-check-in-search";
 import { getActiveStaffSession } from "@/lib/staff-session";
+import { cn } from "@/lib/utils";
 import { PendingLink } from "@/components/pending-link";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -48,6 +49,16 @@ function formatAttemptTime(value: Date, timeZone: string) {
     second: "2-digit",
     timeZone,
     timeZoneName: "short",
+  }).format(value);
+}
+
+function formatCheckInTime(value: Date, timeZone: string) {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
   }).format(value);
 }
 
@@ -85,20 +96,25 @@ export default async function CheckInConflictsPage({
           ) : null}
         </div>
         <p className="max-w-3xl text-support text-muted-foreground">
-          Open the door, fix a mistake, or settle a ticket scanned on two
+          See who is in, undo a mistake, or settle a ticket scanned on two
           phones.
         </p>
         {event.status === "published" ? (
           <div className="mt-2 flex flex-col items-start gap-2">
             <PendingLink
               href={`/scanner/${event.id}`}
-              className={buttonVariants({ size: "lg" })}
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                // The phone's bottom bar has this until check-in closes.
+                event.checkInClosesAt >= new Date() && "max-lg:hidden",
+              )}
             >
               <IconScan data-icon="inline-start" />
               Open scanner
             </PendingLink>
             <p className="text-sm text-muted-foreground">
-              On each phone, load the guest list while the signal is good.
+              On each phone, open the scanner and load the guest list while the
+              signal is good.
             </p>
           </div>
         ) : event.status === "draft" ? (
@@ -122,7 +138,7 @@ export default async function CheckInConflictsPage({
       {query.error ? (
         <Alert variant="destructive">
           <IconAlertTriangle aria-hidden="true" />
-          <AlertTitle>Resolution not saved</AlertTitle>
+          <AlertTitle>Decision not saved</AlertTitle>
           <AlertDescription>{query.error}</AlertDescription>
         </Alert>
       ) : null}
@@ -145,7 +161,7 @@ export default async function CheckInConflictsPage({
               <div className="border-b p-5 sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h2 id={`conflict-${conflict.id}`} className="text-lg font-headline">
+                    <h2 id={`conflict-${conflict.id}`} className="text-lg font-headline wrap-anywhere">
                       {conflict.attendeeName}
                     </h2>
                     <p className="mt-1 font-mono text-xs text-muted-foreground">
@@ -170,9 +186,9 @@ export default async function CheckInConflictsPage({
                       Choose which scan counts
                     </legend>
                     <p className="mt-1 text-support text-muted-foreground">
-                      Device time is not sufficiently reliable to choose
-                      automatically. Confirm the entrance evidence before
-                      deciding.
+                      Two phones admitted this ticket while offline, and their
+                      clocks can&apos;t settle it. Ask the door team who came
+                      in, then pick the scan that counts.
                     </p>
                     <div className="mt-4 divide-y rounded-xl border">
                       {conflict.attempts.map((attempt, index) => (
@@ -203,8 +219,8 @@ export default async function CheckInConflictsPage({
                                 }
                               >
                                 {attempt.timestampConfidence === "low"
-                                  ? "Low confidence"
-                                  : "High confidence"}
+                                  ? "Time may be off"
+                                  : "Time looks right"}
                               </Badge>
                             </span>
                             <span className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -217,8 +233,11 @@ export default async function CheckInConflictsPage({
                                 event.eventTimeZone,
                               )}
                             </span>
-                            <span className="mt-1 block font-mono text-xs text-muted-foreground">
-                              Device {attempt.scannerDeviceId}
+                            <span className="mt-1 block text-xs text-muted-foreground">
+                              Phone{" "}
+                              <span className="font-mono">
+                                {attempt.scannerDeviceId?.slice(0, 6) ?? "unknown"}
+                              </span>
                             </span>
                           </span>
                         </label>
@@ -239,7 +258,7 @@ export default async function CheckInConflictsPage({
                       placeholder="What did the door team confirm?"
                     />
                     <FieldDescription>
-                      Your choice and reason stay in the audit log.
+                      Your decision and reason are kept in the audit log.
                     </FieldDescription>
                   </Field>
                   <FormSubmitButton
@@ -262,8 +281,7 @@ export default async function CheckInConflictsPage({
               Active check-ins
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Undo one if a guest needs to scan again. The original scan and
-              your reason stay in the history.
+              Undo one if a guest needs to scan again.
             </p>
           </div>
         </div>
@@ -322,16 +340,16 @@ async function ActiveCheckInResults({
         aria-live="polite"
       >
         {searchQuery
-          ? `${activeCheckIns.matchingCount.toLocaleString()} of ${activeCheckIns.totalCount.toLocaleString()} active check-ins match`
+          ? `${activeCheckIns.matchingCount.toLocaleString()} of ${activeCheckIns.totalCount.toLocaleString()} match`
           : activeCheckIns.matchingCount > activeCheckIns.limit
-            ? `Showing the ${activeCheckIns.limit} most recent of ${activeCheckIns.totalCount.toLocaleString()} active check-ins. Search by name to find any of them.`
-            : `${activeCheckIns.totalCount.toLocaleString()} active check-in${activeCheckIns.totalCount === 1 ? "" : "s"}`}
+            ? `Latest ${activeCheckIns.limit} of ${activeCheckIns.totalCount.toLocaleString()} checked in. Search to find anyone else.`
+            : `${activeCheckIns.totalCount.toLocaleString()} checked in`}
       </p>
 
       {activeCheckIns.rows.length === 0 ? (
-        <div className="border-y bg-background px-5 py-8 text-center text-sm text-muted-foreground">
+        <div className="panel px-5 py-8 text-center text-sm text-muted-foreground">
           {searchQuery
-            ? "No active check-ins match that name. Every active check-in was searched, not just the visible page."
+            ? "Nobody checked in matches that name."
             : "Nobody is checked in yet."}
         </div>
       ) : (
@@ -339,20 +357,21 @@ async function ActiveCheckInResults({
           {activeCheckIns.rows.map((activeCheckIn) => (
             <div
               key={activeCheckIn.id}
-              className="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between"
+              className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-3.5"
             >
-              <div>
-                <h3 className="font-semibold">{activeCheckIn.attendeeName}</h3>
+              <div className="min-w-0">
+                <h3 className="font-semibold wrap-anywhere">{activeCheckIn.attendeeName}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Checked in by {activeCheckIn.actorName} at{" "}
-                  {formatAttemptTime(activeCheckIn.checkedInAt, eventTimeZone)}
+                  {formatCheckInTime(activeCheckIn.checkedInAt, eventTimeZone)}, by{" "}
+                  {activeCheckIn.actorName}
                 </p>
               </div>
               <ReasonedCheckInAction
                 label="Undo check-in"
+                triggerLabel="Undo"
                 title={`Undo ${activeCheckIn.attendeeName}'s check-in?`}
-                description="The check-in is undone and the history is kept. The ticket can be admitted again."
-                reasonDescription="The correction, and your reason for it, are kept permanently."
+                description="The ticket can be scanned again. The original scan stays in the audit log."
+                reasonDescription="Your reason is kept in the audit log."
                 variant="destructive"
                 quietTrigger
                 action={reverseOrganizerCheckInAction.bind(

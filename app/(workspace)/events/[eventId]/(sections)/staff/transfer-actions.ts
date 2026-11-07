@@ -15,12 +15,12 @@ export async function acceptOwnershipTransferAction(
   try {
     await acceptOwnershipTransfer(transferId, session.user.id);
   } catch {
-    redirect(`/events/${eventId}/staff?error=Ownership+Transfer+could+not+be+accepted.`);
+    redirect(`/events/${eventId}/staff?error=That+transfer+could+not+be+accepted.`);
   }
   revalidatePath("/events");
   revalidatePath(`/events/${eventId}`);
   revalidatePath(`/events/${eventId}/staff`);
-  redirect(`/events/${eventId}/staff?notice=You+are+now+the+Event+Owner.`);
+  redirect(`/events/${eventId}/staff?notice=You+now+own+this+event.`);
 }
 
 export async function withdrawOwnershipTransferAction(
@@ -32,10 +32,10 @@ export async function withdrawOwnershipTransferAction(
   try {
     await withdrawOwnershipTransfer(transferId, session.user.id);
   } catch {
-    redirect(`/events/${eventId}/staff?error=Ownership+Transfer+could+not+be+withdrawn.`);
+    redirect(`/events/${eventId}/staff?error=That+transfer+could+not+be+withdrawn.`);
   }
   revalidatePath("/events");
   revalidatePath(`/events/${eventId}`);
   revalidatePath(`/events/${eventId}/staff`);
-  redirect(`/events/${eventId}/staff?notice=Ownership+Transfer+withdrawn.`);
+  redirect(`/events/${eventId}/staff?notice=Transfer+withdrawn.`);
 }

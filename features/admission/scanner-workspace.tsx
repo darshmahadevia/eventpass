@@ -2,7 +2,6 @@
 
 import {
   FormEvent,
-  startTransition,
   useCallback,
   useEffect,
   useRef,
@@ -10,7 +9,12 @@ import {
 } from "react";
 import {
   IconAlertTriangle,
+  IconArrowLeft,
+  IconBolt,
+  IconBoltOff,
   IconCamera,
+  IconCloudCheck,
+  IconCloudOff,
   IconCloudUpload,
   IconScan,
   IconVolume,
@@ -18,11 +22,14 @@ import {
 } from "@tabler/icons-react";
 
 import {
+  findGuestsAction,
   quickReverseCheckInAction,
   scanTicketAction,
 } from "@/app/scanner/[eventId]/actions";
+import { PendingLink } from "@/components/pending-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Field,
   FieldGroup,
@@ -34,17 +41,22 @@ import type {
   AdmissionOutcome,
   AdmissionResult,
 } from "@/features/admission/server/admission-application";
+import { formatTicketCode } from "@/features/tickets/ticket-code";
 import { cn } from "@/lib/utils";
 import { admitOffline } from "./offline-scan";
 import { admitWithOfflineFallback } from "./scanner-admission";
 import { offlineScannerStore } from "./offline-snapshot-store";
 import { synchronizePendingAttempts } from "./offline-synchronization-client";
-import { ScannerPreparation } from "./scanner-preparation";
+import { ScannerPreparation, type GuestListSummary } from "./scanner-preparation";
 import { ReasonedCheckInAction } from "./reasoned-check-in-action";
 import { PwaUpdateManager } from "./pwa-update-manager";
 import { ScanOutcome, outcomePresentation } from "./scan-outcome";
+import { useOnlineStatus } from "./use-online-status";
 
-type ScannerControls = { stop: () => void };
+type ScannerControls = {
+  stop: () => void;
+  switchTorch?: (on: boolean) => Promise<void>;
+};
 type CameraSession = {
   cancelled: boolean;
   controls: ScannerControls | null;
@@ -73,27 +85,46 @@ function announceFeedback(outcome: AdmissionOutcome, enabled: boolean) {
   }
 }
 
+const SAME_TICKET_QUIET_MS = 2_000;
+
+/** Ten letters and digits in any casing or spacing, or a pasted signed ticket. */
+function isTicketInput(value: string) {
+  const compact = value.replace(/[\s-]/g, "");
+  return /^[0-9a-z]{10}$/i.test(compact) || value.includes(".");
+}
+
+type GuestMatch = {
+  ticketCode: string;
+  displayName: string;
+  arrived: boolean;
+};
+
+type RecentScan = {
+  id: string;
+  name: string;
+  label: string;
+  checkInId?: string;
+  ticketId?: string;
+};
+
 function ReverseAcceptedCheckIn({
   eventId,
   checkInId,
-  actorRole,
   onCompleted,
+  triggerLabel,
 }: {
   eventId: string;
   checkInId: string;
-  actorRole: string;
   onCompleted: () => void;
+  triggerLabel?: string;
 }) {
   return (
     <ReasonedCheckInAction
-      label={
-        actorRole === "check_in_volunteer"
-          ? "Quick Reversal"
-          : "Reverse check-in"
-      }
-      title="Make this ticket admissible again?"
-      description="The check-in is undone and both it and the scan are kept on record. The ticket can be admitted again."
-      reasonDescription="The correction, and your reason for it, are kept permanently."
+      label="Undo check-in"
+      triggerLabel={triggerLabel}
+      title="Undo this check-in?"
+      description="The ticket can be scanned again. The original scan stays in the audit log."
+      reasonDescription="Your reason is kept in the audit log."
       // Outline, not destructive. This sits on the mint success surface, where
       // a pink tint reads as an error rather than the secondary action it is.
       variant="outline"
@@ -114,18 +145,43 @@ function ReverseAcceptedCheckIn({
 
 export function ScannerWorkspace({
   eventId,
+  eventName,
   eventStatus,
+  doorState,
   eventSuspended,
   actorRole,
   checkInWindow,
+  exitHref,
 }: {
   eventId: string;
+  eventName: string;
   eventStatus: string;
+  doorState: "before" | "open" | "after";
   eventSuspended: boolean;
   actorRole: string;
   checkInWindow: string;
+  exitHref: string;
 }) {
+  const online = useOnlineStatus();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const manualInputRef = useRef<HTMLInputElement>(null);
+  const nextScanRef = useRef<HTMLButtonElement>(null);
+  // The code just decided, and until when to ignore it. A guest still holding
+  // their phone up is normal, and the restarted camera read it straight back as
+  // "Already checked in" for someone who had just been let in.
+  const settledCodeRef = useRef<{ text: string; until: number } | null>(null);
+  // `undefined` until this phone's storage has answered.
+  const [guestList, setGuestList] = useState<
+    GuestListSummary | null | undefined
+  >(undefined);
+  const [sameTicketInView, setSameTicketInView] = useState(false);
+  const [nameHint, setNameHint] = useState(false);
+  const [remoteMatches, setRemoteMatches] = useState<GuestMatch[] | null>(null);
+  const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
+  const [torchAvailable, setTorchAvailable] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const lookupTimer = useRef<number | undefined>(undefined);
+  const [lastSource, setLastSource] = useState<"online" | "offline">("online");
   const cameraSessionRef = useRef<CameraSession | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const submittingRef = useRef(false);
@@ -139,6 +195,7 @@ export function ScannerWorkspace({
   const [actionError, setActionError] = useState<string | null>(null);
   const [feedbackEnabled, setFeedbackEnabled] = useState(true);
   const [pendingAttemptCount, setPendingAttemptCount] = useState(0);
+  const [admittedCount, setAdmittedCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [lastInput, setLastInput] = useState<{
@@ -158,6 +215,27 @@ export function ScannerWorkspace({
     [],
   );
 
+  // A phone that sleeps between guests drops the camera, so the screen stays on
+  // for as long as the scanner is open. Browsers release this when hidden.
+  useEffect(() => {
+    let lock: WakeLockSentinel | null = null;
+    const acquire = () => {
+      if (document.visibilityState !== "visible") return;
+      void navigator.wakeLock
+        ?.request("screen")
+        .then((sentinel) => {
+          lock = sentinel;
+        })
+        .catch(() => undefined);
+    };
+    acquire();
+    document.addEventListener("visibilitychange", acquire);
+    return () => {
+      document.removeEventListener("visibilitychange", acquire);
+      void lock?.release();
+    };
+  }, []);
+
   const refreshPendingCount = useCallback(async () => {
     setPendingAttemptCount(
       await offlineScannerStore.countPendingScanAttempts(eventId),
@@ -172,39 +250,23 @@ export function ScannerWorkspace({
     try {
       const synchronized = await synchronizePendingAttempts(eventId);
       if (synchronized.acknowledged > 0) {
-        const conflicts = synchronized.reconciledOutcomes.filter(
-          (outcome) => outcome === "conflict",
-        ).length;
-        const lostConflicts = synchronized.reconciledOutcomes.filter(
-          (outcome) => outcome === "duplicate",
-        ).length;
-        const acceptedConflicts = synchronized.reconciledOutcomes.filter(
-          (outcome) => outcome === "accepted",
-        ).length;
-        const resolutionParts = [];
-        if (conflicts > 0) {
-          resolutionParts.push(
-            `${conflicts} provisional acceptance${conflicts === 1 ? " requires" : "s require"} Organizer review and ${conflicts === 1 ? "is" : "are"} not globally final`,
-          );
-        }
-        if (lostConflicts > 0) {
-          resolutionParts.push(
-            `${lostConflicts} provisional acceptance${lostConflicts === 1 ? " did" : "s did"} not become the authoritative check-in`,
-          );
-        }
-        if (acceptedConflicts > 0) {
-          resolutionParts.push(
-            `${acceptedConflicts} provisional acceptance${acceptedConflicts === 1 ? " is" : "s are"} now authoritative`,
-          );
-        }
-        const resolution =
-          resolutionParts.length > 0
-            ? ` ${resolutionParts.join("; ")}.`
-            : synchronized.changed > 0
-              ? ` ${synchronized.changed} reconciled with authoritative server state.`
-              : "";
+        const count = (outcome: string) =>
+          synchronized.reconciledOutcomes.filter((item) => item === outcome)
+            .length;
+        const conflicts = count("conflict");
+        const lostConflicts = count("duplicate");
+        const scans = (total: number) =>
+          `${total} scan${total === 1 ? "" : "s"}`;
+        const notes = [
+          conflicts > 0
+            ? `${scans(conflicts)} need${conflicts === 1 ? "s" : ""} an organizer to review`
+            : null,
+          lostConflicts > 0
+            ? `${scans(lostConflicts)} did not count because another phone got there first`
+            : null,
+        ].filter(Boolean);
         setSyncMessage(
-          `${synchronized.acknowledged} scan attempt${synchronized.acknowledged === 1 ? "" : "s"} synchronized.${resolution}`,
+          `${scans(synchronized.acknowledged)} synced.${notes.length > 0 ? ` ${notes.join(". ")}.` : ""}`,
         );
       }
       await refreshPendingCount();
@@ -217,13 +279,13 @@ export function ScannerWorkspace({
           );
         if (purged) {
           setSyncMessage(
-            "Check-in closed and all attempts acknowledged: cached event data purged.",
+            "Check-in has closed and every scan is synced, so the guest list was removed from this phone.",
           );
         }
       }
     } catch {
       setSyncMessage(
-        "Pending scan attempts remain safely stored. Retry when connectivity is stable.",
+        "Your scans are safe on this phone. They will sync when the signal is steady.",
       );
     } finally {
       syncingRef.current = false;
@@ -248,8 +310,11 @@ export function ScannerWorkspace({
     };
   }, [eventId, refreshPendingCount, synchronize]);
 
+  // A decision takes focus on its one next step, so a volunteer at a keyboard
+  // can answer it with Enter. The dialog's label is what a screen reader hears.
   useEffect(() => {
-    if (result || actionError) resultRef.current?.focus();
+    if (result) nextScanRef.current?.focus();
+    else if (actionError) resultRef.current?.focus();
   }, [actionError, result]);
 
   async function submitInput(
@@ -278,7 +343,26 @@ export function ScannerWorkspace({
         },
       );
       const nextResult = admission.result;
+      setLastSource(admission.source);
       setResult(nextResult);
+      setRecentScans((current) =>
+        [
+          {
+            id: crypto.randomUUID(),
+            name: nextResult.attendeeName ?? "Unknown ticket",
+            label: outcomePresentation[nextResult.outcome].title,
+            checkInId: nextResult.checkInId,
+            ticketId: nextResult.ticketId,
+          },
+          ...current,
+        ].slice(0, 5),
+      );
+      if (
+        nextResult.outcome === "accepted" ||
+        nextResult.outcome === "provisional"
+      ) {
+        setAdmittedCount((count) => count + 1);
+      }
       if (admission.source === "online" && nextResult.ticketId) {
         try {
           await offlineScannerStore.applyAdmissionResults(eventId, [
@@ -286,24 +370,39 @@ export function ScannerWorkspace({
           ]);
         } catch {
           setActionError(
-            "The server recorded this scan, but this phone could not update its offline ticket list. Refresh the snapshot before going offline.",
+            "This scan counted, but the guest list on this phone did not update. Refresh it before you lose signal.",
           );
         }
       }
       setLastInput({ value: input, method: inputMethod });
       announceFeedback(nextResult.outcome, feedbackEnabled);
       await refreshPendingCount();
-      if (inputMethod === "manual") setManualCode("");
+      if (inputMethod === "manual") updateManualCode("");
       return nextResult;
     } catch {
       setActionError(
-        "The ticket could not be checked. Confirm this device is online, then try again.",
+        "That ticket could not be checked. Check this phone has signal, then try again.",
       );
       return null;
     } finally {
       submittingRef.current = false;
       setIsPending(false);
     }
+  }
+
+  function updateManualCode(value: string) {
+    setManualCode(value);
+    setNameHint(false);
+    window.clearTimeout(lookupTimer.current);
+    setRemoteMatches(null);
+    const query = value.trim();
+    // Only a phone with no saved list needs the server for this.
+    if (guestList || !online || query.length < 2 || isTicketInput(query)) return;
+    lookupTimer.current = window.setTimeout(() => {
+      void findGuestsAction(eventId, query)
+        .then(setRemoteMatches)
+        .catch(() => setRemoteMatches([]));
+    }, 250);
   }
 
   async function startCamera() {
@@ -328,13 +427,27 @@ export function ScannerWorkspace({
             return;
           }
           if (!decoded || submittingRef.current) return;
+          const text = decoded.getText();
+          const settled = settledCodeRef.current;
+          if (settled?.text === text && Date.now() < settled.until) {
+            // Still in frame, so keep waiting for it to leave. A deliberate
+            // re-scan a moment later still gets its honest answer.
+            settled.until = Date.now() + SAME_TICKET_QUIET_MS;
+            setSameTicketInView(true);
+            window.setTimeout(() => {
+              if (Date.now() >= (settledCodeRef.current?.until ?? 0)) {
+                setSameTicketInView(false);
+              }
+            }, SAME_TICKET_QUIET_MS + 50);
+            return;
+          }
           session.cancelled = true;
           callbackControls.stop();
           session.controls = null;
           cameraSessionRef.current = null;
           setCameraStarting(false);
           setCameraActive(false);
-          startTransition(() => void submitInput(decoded.getText(), "camera"));
+          void submitInput(text, "camera");
         },
       );
       if (session.cancelled || cameraSessionRef.current !== session) {
@@ -342,6 +455,8 @@ export function ScannerWorkspace({
         return;
       }
       session.controls = controls;
+      setTorchAvailable(Boolean(controls.switchTorch));
+      setTorchOn(false);
       setCameraStarting(false);
       setCameraActive(true);
     } catch {
@@ -356,7 +471,7 @@ export function ScannerWorkspace({
       setCameraStarting(false);
       setCameraActive(false);
       setCameraError(
-        "The camera is unavailable or was blocked. Type the ticket code below instead.",
+        "The camera is blocked or in use. Allow camera access in your browser, or type the ticket code below.",
       );
     }
   }
@@ -377,27 +492,93 @@ export function ScannerWorkspace({
     event.preventDefault();
     const value = manualCode.trim();
     if (!value) return;
-    startTransition(() => void submitInput(value, "manual"));
+    // A name is a search, never a scan. Sending one to the server came back as
+    // "Invalid ticket", at the exact moment a guest had no ticket to show.
+    if (!isTicketInput(value)) {
+      setNameHint(true);
+      return;
+    }
+    void submitInput(value, "manual");
   }
 
   const presentation = result ? outcomePresentation[result.outcome] : null;
+  const trimmedInput = manualCode.trim();
+  const searchingByName =
+    trimmedInput.length >= 2 && !isTicketInput(trimmedInput);
+  const nameQuery = trimmedInput.toLowerCase();
+  const nameMatches: GuestMatch[] | null = !searchingByName
+    ? []
+    : guestList
+      ? guestList.guests
+          .filter((guest) =>
+            guest.displayName.toLowerCase().includes(nameQuery),
+          )
+          .slice(0, 6)
+          .map((guest) => ({
+            ticketCode: guest.ticketCode,
+            displayName: guest.displayName,
+            arrived: guest.existingCheckInState === "checked_in",
+          }))
+      : remoteMatches;
 
   return (
-    <div className="relative mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-4 py-4 sm:px-6 sm:py-6">
-      <h1 className="sr-only">Scan tickets</h1>
+    <>
+    <header className="border-b">
+      <div className="mx-auto flex min-h-14 w-full max-w-2xl items-center gap-1 px-2 py-1 sm:px-4">
+        <PendingLink
+          href={exitHref}
+          className={buttonVariants({ variant: "ghost", size: "icon" })}
+          aria-label={`Leave the scanner for ${eventName}`}
+          pendingLabel=""
+        >
+          <IconArrowLeft />
+        </PendingLink>
+        <p className="min-w-0 flex-1 truncate font-headline">{eventName}</p>
+        {/* Always on screen: whether this phone can reach the server changes
+            what a scan means, and it used to sit below the fold. */}
+        <Badge
+          variant={online ? "secondary" : "provisional"}
+          role="status"
+          className="h-7 px-3"
+        >
+          {online ? (
+            <IconCloudCheck data-icon="inline-start" />
+          ) : (
+            <IconCloudOff data-icon="inline-start" />
+          )}
+          {online ? "Online" : "Offline"}
+        </Badge>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => setFeedbackEnabled((enabled) => !enabled)}
+          aria-label="Sound and vibration on each scan"
+          title={`${feedbackEnabled ? "Turn off" : "Turn on"} sound and vibration`}
+          aria-pressed={feedbackEnabled}
+        >
+          {feedbackEnabled ? <IconVolume /> : <IconVolumeOff />}
+        </Button>
+      </div>
+    </header>
+    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-4 sm:gap-5 sm:px-6 sm:py-6">
+      <h1 className="sr-only">Scan tickets for {eventName}</h1>
 
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-lg"
-        className="absolute -top-14 right-2 z-10 size-12 border-transparent bg-transparent sm:right-4"
-        onClick={() => setFeedbackEnabled((enabled) => !enabled)}
-        aria-label={`${feedbackEnabled ? "Turn off" : "Turn on"} sound and vibration`}
-        title={`${feedbackEnabled ? "Turn off" : "Turn on"} sound and vibration`}
-        aria-pressed={feedbackEnabled}
-      >
-        {feedbackEnabled ? <IconVolume /> : <IconVolumeOff />}
-      </Button>
+      {doorState !== "open" && eventStatus !== "canceled" ? (
+        <Alert variant="warning">
+          <IconAlertTriangle aria-hidden="true" />
+          <AlertTitle>
+            {doorState === "before"
+              ? "Check-in has not opened yet"
+              : "Check-in has closed"}
+          </AlertTitle>
+          <AlertDescription>
+            {doorState === "before"
+              ? `Check-in: ${checkInWindow}. Save the guest list now, while the signal is good.`
+              : "Tickets can't be admitted now. Open this page with signal so any waiting scans sync."}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {eventStatus === "canceled" ? (
         <Alert variant="destructive">
@@ -414,20 +595,20 @@ export function ScannerWorkspace({
           <IconAlertTriangle aria-hidden="true" />
           <AlertTitle>Event currently unavailable</AlertTitle>
           <AlertDescription>
-            Online check-in is paused. This phone can keep scanning offline
-            until its access expires, and waiting scans will still sync.
+            Online check-in is paused. This phone can keep scanning offline,
+            and waiting scans will still sync.
           </AlertDescription>
         </Alert>
       ) : null}
 
       {pendingAttemptCount > 0 || syncMessage ? (
         <section
-          aria-label="Scan attempt synchronization"
+          aria-label="Sync status"
           className="panel flex flex-wrap items-center justify-between gap-3 p-4"
         >
           <p className="text-sm text-muted-foreground" aria-live="polite">
             {pendingAttemptCount > 0
-              ? `${pendingAttemptCount} scan${pendingAttemptCount === 1 ? "" : "s"} waiting to sync from this device.`
+              ? `${pendingAttemptCount} scan${pendingAttemptCount === 1 ? "" : "s"} waiting to sync from this phone.`
               : syncMessage}
           </p>
           {/* Only when there is something to retry. This section also renders
@@ -461,6 +642,13 @@ export function ScannerWorkspace({
         </section>
       ) : null}
 
+      <ScannerPreparation
+        eventId={eventId}
+        eventSuspended={eventSuspended}
+        online={online}
+        onGuestListChange={setGuestList}
+      />
+
       {presentation && result ? (
         // The decision owns the screen. It previously rendered as an 18px
         // headline with a 28px glyph, in normal flow above the camera — so a
@@ -473,7 +661,11 @@ export function ScannerWorkspace({
           ref={resultRef}
           tabIndex={-1}
           role="alertdialog"
-          aria-label={presentation.title}
+          aria-label={
+            result.attendeeName
+              ? `${presentation.title}: ${result.attendeeName}`
+              : presentation.title
+          }
           aria-live="assertive"
           className="fixed inset-0 z-50 overflow-y-auto outline-none"
         >
@@ -481,9 +673,31 @@ export function ScannerWorkspace({
             outcome={result.outcome}
             attendeeName={result.attendeeName}
             className="min-h-full"
+            // Offline, "not found" only means not on this phone's copy. The
+            // guest may have registered after it was saved.
+            {...(result.outcome === "unknown" && lastSource === "offline"
+              ? {
+                  title: "Not on this phone's list",
+                  description: `The guest list here was saved ${guestList?.age ?? "earlier"}, so they may have registered since. Check their confirmation email, or try again once there is signal.`,
+                  toneOverride: "warning" as const,
+                }
+              : result.outcome === "duplicate" && result.checkedInAt
+                ? {
+                    description: `This ticket was used at ${new Date(result.checkedInAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}. Check with the guest before letting them through.`,
+                  }
+                : {})}
             actions={
               <>
+                {result.outcome === "signed_out" ? (
+                  <a
+                    href={`/sign-in?callbackUrl=${encodeURIComponent(`/scanner/${eventId}`)}`}
+                    className={buttonVariants({ size: "lg", className: "h-16 text-xl" })}
+                  >
+                    Sign in
+                  </a>
+                ) : null}
                 <Button
+                  ref={nextScanRef}
                   type="button"
                   size="lg"
                   className="h-16 text-xl"
@@ -492,8 +706,18 @@ export function ScannerWorkspace({
                     setResult(null);
                     setLastInput(null);
                     // The camera stops to read a code. Going straight back to
-                    // it saves a second tap on every guest of the night.
-                    if (scannedByCamera) void startCamera();
+                    // it saves a second tap on every guest of the night; typing
+                    // goes straight back to the box for the same reason.
+                    if (scannedByCamera && lastInput) {
+                      settledCodeRef.current = {
+                        text: lastInput.value,
+                        until: Date.now() + SAME_TICKET_QUIET_MS,
+                      };
+                      void startCamera();
+                    } else
+                      requestAnimationFrame(() =>
+                        manualInputRef.current?.focus(),
+                      );
                   }}
                 >
                   <IconScan data-icon="inline-start" className="size-6!" />
@@ -503,7 +727,6 @@ export function ScannerWorkspace({
                   <ReverseAcceptedCheckIn
                     eventId={eventId}
                     checkInId={result.checkInId}
-                    actorRole={actorRole}
                     onCompleted={() => {
                       if (result.ticketId) {
                         void offlineScannerStore
@@ -515,13 +738,13 @@ export function ScannerWorkspace({
                           ])
                           .catch(() => {
                             setActionError(
-                              "Check-in reversed on the server. Refresh this phone's guest list before going offline.",
+                              "Check-in undone. Refresh this phone's guest list before you lose signal.",
                             );
                           });
                       }
                       setResult(null);
                       setSyncMessage(
-                        "Check-in reversed. The ticket can be admitted again.",
+                        "Check-in undone. The ticket can be scanned again.",
                       );
                     }}
                   />
@@ -532,9 +755,9 @@ export function ScannerWorkspace({
                 lastInput ? (
                   <ReasonedCheckInAction
                     label="Admit with override"
-                    title="Admit outside the check-in Window?"
-                    description="This creates an authoritative check-in outside the configured window. Use it only for an accountable operational exception."
-                    reasonDescription="Only organizers can override the window, and the reason is kept permanently."
+                    title="Admit outside check-in hours?"
+                    description="This checks the guest in even though check-in is not open. Use it only for a genuine exception."
+                    reasonDescription="Your reason is kept in the audit log."
                     action={async (reason) => {
                       const override = await submitInput(
                         lastInput.value,
@@ -546,7 +769,7 @@ export function ScannerWorkspace({
                         : {
                             outcome: "error" as const,
                             message:
-                              "The override was not accepted. Confirm your organizer access and connectivity.",
+                              "That did not go through. Check this phone has signal and try again.",
                           };
                     }}
                   />
@@ -574,7 +797,14 @@ export function ScannerWorkspace({
         <h2 id="camera-heading" className="sr-only">
           Camera
         </h2>
-        <div className="relative aspect-square max-h-[62svh] w-full overflow-hidden rounded-[var(--radius-overlay)] bg-card sm:aspect-[4/3]">
+        <div
+          className={cn(
+            "relative max-h-[62svh] w-full overflow-hidden rounded-[var(--radius-overlay)] bg-card sm:aspect-[4/3]",
+            // Idle, the viewfinder has nothing to show, so it gives its height
+            // to phone setup. Live, it takes the square a QR code needs.
+            cameraActive ? "aspect-square" : "aspect-[5/3]",
+          )}
+        >
           <video
             ref={videoRef}
             muted
@@ -585,14 +815,29 @@ export function ScannerWorkspace({
             )}
             aria-label="Live camera preview"
           />
+          {cameraActive && sameTicketInView ? (
+            <p
+              role="status"
+              className="absolute inset-x-4 top-3 z-10 rounded-md bg-background px-3 py-2 text-center text-sm font-semibold"
+            >
+              Same ticket. Ready for the next guest.
+            </p>
+          ) : null}
           <div
             aria-hidden="true"
-            className="scan-reticle pointer-events-none absolute inset-6 sm:inset-10"
+            className="scan-reticle pointer-events-none absolute inset-4 sm:inset-10"
           />
 
           {!cameraActive ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
-              {cameraStarting ? (
+              {isPending ? (
+                <>
+                  <Spinner className="size-8" />
+                  <p className="text-sm text-muted-foreground" role="status">
+                    Checking ticket
+                  </p>
+                </>
+              ) : cameraStarting ? (
                 <>
                   <Spinner className="size-8" />
                   <p className="text-sm text-muted-foreground">
@@ -612,20 +857,40 @@ export function ScannerWorkspace({
                     Start scanning
                   </Button>
                   <p className="max-w-xs text-sm text-muted-foreground">
-                    Check-in runs {checkInWindow}
+                    Check-in: {checkInWindow}
                   </p>
                 </>
               )}
             </div>
           ) : (
-            <Button
-              type="button"
-              variant="outline"
-              className="absolute bottom-3 left-1/2 z-10 h-11 -translate-x-1/2 border-transparent bg-background/70"
-              onClick={stopCamera}
-            >
-              Stop camera
-            </Button>
+            <div className="absolute inset-x-0 bottom-3 z-10 flex justify-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 border-transparent bg-background dark:bg-background"
+                onClick={stopCamera}
+              >
+                Stop camera
+              </Button>
+              {torchAvailable ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 border-transparent bg-background dark:bg-background"
+                  aria-pressed={torchOn}
+                  onClick={() => {
+                    const next = !torchOn;
+                    void cameraSessionRef.current?.controls
+                      ?.switchTorch?.(next)
+                      .then(() => setTorchOn(next))
+                      .catch(() => setTorchAvailable(false));
+                  }}
+                >
+                  {torchOn ? <IconBolt data-icon="inline-start" /> : <IconBoltOff data-icon="inline-start" />}
+                  Light
+                </Button>
+              ) : null}
+            </div>
           )}
         </div>
 
@@ -636,29 +901,32 @@ export function ScannerWorkspace({
             <AlertDescription>{cameraError}</AlertDescription>
           </Alert>
         ) : null}
+        {admittedCount > 0 ? (
+          <p className="text-center text-sm text-muted-foreground" role="status">
+            {admittedCount} checked in on this phone so far
+          </p>
+        ) : null}
       </section>
 
-      <section aria-label="Enter a ticket code">
+      <section aria-label="Find a ticket by code or name">
         <form onSubmit={handleManualSubmit} noValidate>
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="ticket-code">
-                No camera? Type the ticket code
+                No QR code? Type a ticket code or guest name
               </FieldLabel>
               <div className="flex items-center gap-2">
                 <Input
+                  ref={manualInputRef}
                   id="ticket-code"
                   name="ticketCode"
                   value={manualCode}
-                  onChange={(event) =>
-                    setManualCode(event.target.value.toUpperCase())
-                  }
-                  placeholder="XXXXX-XXXXX"
+                  onChange={(event) => updateManualCode(event.target.value)}
+                  placeholder="Code or name"
                   autoComplete="off"
-                  autoCapitalize="characters"
                   spellCheck={false}
-                  maxLength={12}
-                  className="h-12! min-w-0 flex-1 font-mono text-lg! tracking-code"
+                  maxLength={80}
+                  className="h-12! min-w-0 flex-1 text-lg!"
                 />
                 <Button
                   type="submit"
@@ -675,9 +943,126 @@ export function ScannerWorkspace({
             </Field>
           </FieldGroup>
         </form>
+        {searchingByName ? (
+          <div className="mt-2">
+            {!guestList && !online ? (
+              <p className="text-sm text-muted-foreground" role="status">
+                Name search needs signal, or the guest list saved on this phone.
+              </p>
+            ) : nameMatches === null ? (
+              <p className="text-sm text-muted-foreground" role="status">
+                Searching…
+              </p>
+            ) : nameMatches.length > 0 ? (
+              <>
+                {nameHint ? (
+                  <p className="mb-2 text-sm font-semibold" role="status">
+                    Tap the guest to check them in.
+                  </p>
+                ) : null}
+                <ul
+                  aria-label="Guests matching that name"
+                  className="panel divide-y overflow-hidden"
+                >
+                  {nameMatches.map((guest) => (
+                    <li key={guest.ticketCode}>
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => {
+                          updateManualCode("");
+                          void submitInput(guest.ticketCode, "manual");
+                        }}
+                        className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-2 text-left outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:ring-inset"
+                      >
+                        <span className="min-w-0 truncate font-semibold">
+                          {guest.displayName}
+                        </span>
+                        <span className="shrink-0 text-sm text-muted-foreground">
+                          {guest.arrived ? (
+                            "Already in"
+                          ) : (
+                            <span className="font-mono tracking-code">
+                              {formatTicketCode(guest.ticketCode)}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  No QR code means no proof of the ticket, so check their ID
+                  before you tap a name.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground" role="status">
+                Nobody matches that name.
+                {guestList
+                  ? " They may have registered after this list was saved."
+                  : ""}
+              </p>
+            )}
+          </div>
+        ) : null}
       </section>
-      <ScannerPreparation eventId={eventId} eventSuspended={eventSuspended} />
+      {recentScans.length > 0 ? (
+        <section aria-labelledby="recent-scans-heading">
+          <h2
+            id="recent-scans-heading"
+            className="mb-2 text-sm font-semibold text-muted-foreground"
+          >
+            Recent on this phone
+          </h2>
+          <ul className="panel divide-y">
+            {recentScans.map((scan) => (
+              <li
+                key={scan.id}
+                className="flex min-h-12 items-center justify-between gap-3 px-4 py-1.5"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold">
+                    {scan.name}
+                  </span>
+                  <span className="block text-sm text-muted-foreground">
+                    {scan.label}
+                  </span>
+                </span>
+                {scan.checkInId ? (
+                  <ReverseAcceptedCheckIn
+                    eventId={eventId}
+                    checkInId={scan.checkInId}
+                    triggerLabel="Undo"
+                    onCompleted={() => {
+                      if (scan.ticketId) {
+                        void offlineScannerStore
+                          .applyAdmissionResults(eventId, [
+                            { ticketId: scan.ticketId, outcome: "not_checked_in" },
+                          ])
+                          .catch(() => undefined);
+                      }
+                      setRecentScans((current) =>
+                        current.map((item) =>
+                          item.id === scan.id
+                            ? {
+                                ...item,
+                                label: "Check-in undone",
+                                checkInId: undefined,
+                              }
+                            : item,
+                        ),
+                      );
+                    }}
+                  />
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <PwaUpdateManager />
     </div>
+    </>
   );
 }

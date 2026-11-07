@@ -19,8 +19,14 @@ import {
   updateDraftEventInputSchema,
 } from "@/features/events/server/update-draft-event";
 import { getActiveStaffSession } from "@/lib/staff-session";
-import { getDefaultEventWindows } from "@/features/events/event-window-defaults";
-import { returnEventToDraft } from "@/features/events/server/return-event-to-draft";
+import {
+  getDefaultEventWindows,
+  presentEventErrors,
+} from "@/features/events/event-window-defaults";
+import {
+  EventCannotReturnToDraftError,
+  returnEventToDraft,
+} from "@/features/events/server/return-event-to-draft";
 import { getOrganizerEvent } from "@/features/events/server/get-event";
 import {
   cancelPublishedEvent,
@@ -70,7 +76,10 @@ export async function updateEventAction(
     return {
       status: "error",
       message: "Review the highlighted fields and try again.",
-      fieldErrors: validation.error.flatten().fieldErrors,
+      fieldErrors: presentEventErrors(
+        validation.error.flatten().fieldErrors,
+        inputValues,
+      ),
       values: inputValues,
     };
   }
@@ -107,14 +116,14 @@ export async function updateEventAction(
 
     return {
       status: "error",
-      message: "The Event could not be saved. It may no longer be editable.",
+      message: "Your changes could not be saved. The event may no longer be editable.",
       values: inputValues,
     };
   }
 
   revalidatePath("/events");
   revalidatePath(`/events/${eventId}`);
-  redirect(`/events/${eventId}`);
+  redirect(`/events/${eventId}?notice=saved`);
 }
 
 export async function publishEventAction(eventId: string) {
@@ -133,7 +142,7 @@ export async function publishEventAction(eventId: string) {
   revalidatePath("/events");
   revalidatePath(`/events/${eventId}`);
   revalidatePath(`/e/${publishedEvent.slug}`);
-  redirect(`/events/${eventId}`);
+  redirect(`/events/${eventId}?notice=published`);
 }
 
 export async function deleteEventAction(eventId: string) {
@@ -165,6 +174,11 @@ export async function returnEventToDraftAction(eventId: string) {
   } catch (error) {
     if (error instanceof EventSuspendedError) {
       redirect(`/events/${eventId}?error=unavailable`);
+    }
+    if (error instanceof EventCannotReturnToDraftError) {
+      redirect(
+        `/events/${eventId}?error=${encodeURIComponent("This event has registrations now, so it cannot go back to draft.")}`,
+      );
     }
     throw error;
   }

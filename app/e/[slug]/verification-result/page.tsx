@@ -1,5 +1,6 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { IconAlertTriangle, IconClockX, IconLinkOff, IconMailCheck } from "@tabler/icons-react";
+import { IconAlertTriangle, IconClockX, IconMailCheck } from "@tabler/icons-react";
 
 import { EventPassMark } from "@/components/eventpass-mark";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -31,11 +32,11 @@ const outcomes = {
     success: false,
   },
   consumed: {
-    icon: IconLinkOff,
-    title: "Verification link already used",
+    icon: IconMailCheck,
+    title: "You are all set",
     description:
-      "This single-use link has already confirmed a registration. Open the ticket email we sent, or contact the event organizer if you cannot find it.",
-    success: false,
+      "Your ticket is in your email. Can't find it? Go back to the event page and choose Get your ticket again.",
+    success: true,
   },
   invalid: {
     icon: IconAlertTriangle,
@@ -62,10 +63,16 @@ const outcomes = {
     icon: IconAlertTriangle,
     title: "Event currently unavailable",
     description:
-      "This Event is currently unavailable, so the Registration could not be confirmed. No Ticket was issued.",
+      "This event is paused, so your registration could not be confirmed. No ticket was issued.",
     success: false,
   },
 } as const;
+
+export const metadata: Metadata = {
+  title: "Email confirmation",
+  referrer: "no-referrer",
+  robots: { index: false, follow: false },
+};
 
 export default async function VerificationResultPage({
   params,
@@ -98,7 +105,11 @@ export default async function VerificationResultPage({
         <section className="w-full panel p-6 sm:p-10">
           <p className="text-sm font-medium text-muted-foreground">{event.name}</p>
           <h1 className="mt-2 type-answer">
-            {content.success ? "Registration verified" : "Registration not confirmed"}
+            {outcome === "consumed"
+              ? "You are already confirmed"
+              : content.success
+                ? "Registration verified"
+                : "Registration not confirmed"}
           </h1>
           <Alert variant={content.success ? "default" : "destructive"} className="mt-8">
             <Icon aria-hidden="true" />

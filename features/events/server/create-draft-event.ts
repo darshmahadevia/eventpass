@@ -14,15 +14,15 @@ import {
 
 const localDateTime = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Choose a valid date and time.");
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Choose a date and time.");
 
 export const createDraftEventInputSchema = z
   .object({
-    name: z.string().trim().min(1, "Enter an Event name.").max(160),
+    name: z.string().trim().min(1, "Give your event a name.").max(160),
     description: z
       .string()
       .trim()
-      .min(1, "Enter an Event description.")
+      .min(1, "Tell guests what to expect.")
       .max(4_000),
     slug: z
       .string()
@@ -36,14 +36,14 @@ export const createDraftEventInputSchema = z
     eventTimeZone: z
       .string()
       .trim()
-      .min(1, "Enter an Event Time Zone.")
-      .refine(isIanaTimeZone, "Enter a valid IANA time zone, such as Asia/Kolkata."),
+      .min(1, "Choose a time zone.")
+      .refine(isIanaTimeZone, "Choose a time zone from the list."),
     startsAtLocal: localDateTime,
     endsAtLocal: localDateTime,
-    venueName: z.string().trim().min(1, "Enter a Venue name.").max(160),
-    venueAddress: z.string().trim().min(1, "Enter the Venue address.").max(500),
+    venueName: z.string().trim().min(1, "Enter the venue name.").max(160),
+    venueAddress: z.string().trim().min(1, "Enter the venue address.").max(500),
     venueMapUrl: z
-      .union([z.literal(""), z.httpUrl("Enter a valid map URL.")])
+      .union([z.literal(""), z.httpUrl("Use a full link starting with https://")])
       .transform((value) => value || null),
     capacity: z.coerce
       .number()
@@ -92,11 +92,11 @@ export const createDraftEventInputSchema = z
     ] as const satisfies ReadonlyArray<keyof typeof dates>;
 
     for (const field of dateFields) {
-      if (!dates[field]) {
+      if (!dates[field] && input[field]) {
         context.addIssue({
           code: "custom",
           path: [field],
-          message: "This local time does not exist in the Event Time Zone.",
+          message: "This time does not exist in the event time zone. Clocks change that day.",
         });
       }
     }
@@ -105,7 +105,7 @@ export const createDraftEventInputSchema = z
       context.addIssue({
         code: "custom",
         path: ["endsAtLocal"],
-        message: "The Event must end after it starts.",
+        message: "The event must end after it starts.",
       });
     }
 
@@ -129,7 +129,7 @@ export const createDraftEventInputSchema = z
       context.addIssue({
         code: "custom",
         path: ["registrationClosesAtLocal"],
-        message: "Registration cannot close after the Event starts.",
+        message: "Registration cannot close after the event starts.",
       });
     }
 
@@ -153,7 +153,7 @@ export const createDraftEventInputSchema = z
       context.addIssue({
         code: "custom",
         path: ["checkInOpensAtLocal"],
-        message: "Check-in must open before the Event ends.",
+        message: "Check-in must open before the event ends.",
       });
     }
 
@@ -165,7 +165,7 @@ export const createDraftEventInputSchema = z
       context.addIssue({
         code: "custom",
         path: ["checkInClosesAtLocal"],
-        message: "Check-in must remain open until the Event starts.",
+        message: "Check-in must stay open until the event starts.",
       });
     }
   });
@@ -195,7 +195,7 @@ export async function createDraftEvent(
       .limit(1);
 
     if (!actor) {
-      throw new StaffCannotCreateEventError("The staff user cannot create Events.");
+      throw new StaffCannotCreateEventError("The staff user cannot create events.");
     }
 
     const [createdEvent] = await transaction
@@ -219,7 +219,7 @@ export async function createDraftEvent(
       .returning({ id: event.id });
 
     if (!createdEvent) {
-      throw new Error("Could not create the Event.");
+      throw new Error("Could not create the event.");
     }
 
     await transaction.insert(eventStaff).values({

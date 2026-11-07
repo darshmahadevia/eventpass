@@ -103,7 +103,7 @@ export type RosterStatusInput = {
 function ticketQualifier(input: RosterStatusInput): string | null {
   if (input.ticketStatus === "canceled") return "Ticket canceled";
   if (input.ticketStatus === "replaced") return "Ticket replaced";
-  if (input.ticketStatus === null) return "No Ticket issued";
+  if (input.ticketStatus === null) return "No ticket issued";
   return null;
 }
 
@@ -140,7 +140,7 @@ export function resolveRosterStatus(
       label: "Expired",
       emphasis: "outline",
       qualifier: offerLapsed
-        ? "Admission Offer not claimed"
+        ? "Offer not claimed"
         : holdLapsed
           ? "Capacity Hold not claimed"
           : null,
@@ -176,7 +176,7 @@ export function resolveRosterStatus(
     if (offer && offer.status === "active" && offer.expiresAt > now) {
       return {
         key: "offer_sent",
-        label: "Admission Offer sent",
+        label: "Offer sent",
         emphasis: "outline",
         qualifier: null,
         deadline: { kind: "admission_offer", at: offer.expiresAt },
@@ -189,7 +189,7 @@ export function resolveRosterStatus(
       emphasis: "muted",
       qualifier:
         offer && (offer.status === "expired" || offer.expiresAt <= now)
-          ? "Admission Offer expired"
+          ? "Offer expired"
           : null,
       deadline: null,
     };

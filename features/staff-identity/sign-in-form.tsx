@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
@@ -45,18 +46,29 @@ function messageForError(error: unknown) {
 
 export function SignInForm({
   callbackURL = "/events",
+  initialEmail = "",
 }: {
   callbackURL?: string;
+  initialEmail?: string;
 }) {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [website, setWebsite] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Separate from `error`. A failed send is our problem, and turning the field
+  // red next to "your address is fine" told people the opposite.
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      setEmailError("Enter your full email address, like you@example.com.");
+      event.currentTarget.querySelector<HTMLInputElement>("#email")?.focus();
+      return;
+    }
+    setEmailError(null);
 
     startTransition(async () => {
       try {
@@ -69,7 +81,7 @@ export function SignInForm({
   }
 
   return (
-    <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+    <form className="flex flex-col gap-6" onSubmit={handleSubmit} noValidate>
       <div className="sr-only" aria-hidden="true">
         <label htmlFor="website">Website</label>
         <input
@@ -91,7 +103,7 @@ export function SignInForm({
       ) : null}
 
       <FieldGroup>
-        <Field data-invalid={Boolean(error)}>
+        <Field data-invalid={Boolean(emailError)}>
           <FieldLabel htmlFor="email">Email address</FieldLabel>
           <Input
             className="h-11"
@@ -105,13 +117,14 @@ export function SignInForm({
             placeholder="you@example.com"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            aria-invalid={Boolean(error)}
+            aria-invalid={Boolean(emailError)}
             required
             disabled={isPending}
           />
+          <FieldError errors={emailError ? [{ message: emailError }] : undefined} />
           <FieldDescription>
-            We&apos;ll email a secure link that works once and expires in 15
-            minutes.
+            We&apos;ll email you a link that signs you in. It works once and
+            expires in 15 minutes.
           </FieldDescription>
         </Field>
       </FieldGroup>

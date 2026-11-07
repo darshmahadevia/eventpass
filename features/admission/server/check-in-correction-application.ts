@@ -43,7 +43,7 @@ export function createCheckInCorrectionService({
       !UUID_PATTERN.test(values.checkInId) ||
       !UUID_PATTERN.test(values.actorUserId)
     ) {
-      throw new CheckInCorrectionError("That Check-in could not be found.");
+      throw new CheckInCorrectionError("That check-in could not be found.");
     }
     const reversedAt = now();
     const reason = values.reason.trim();
@@ -73,7 +73,7 @@ export function createCheckInCorrectionService({
       )
       .limit(1);
     if (!target) {
-      throw new CheckInCorrectionError("That Check-in could not be found.");
+      throw new CheckInCorrectionError("That check-in could not be found.");
     }
 
     await transaction
@@ -93,7 +93,7 @@ export function createCheckInCorrectionService({
       .for("update")
       .limit(1);
     if (!lockedTarget || lockedTarget.invalidatedAt) {
-      throw new CheckInCorrectionError("That Check-in is no longer active.");
+      throw new CheckInCorrectionError("That check-in is no longer active.");
     }
 
     const [assignment] = await transaction
@@ -136,7 +136,7 @@ export function createCheckInCorrectionService({
         elapsed > QUICK_REVERSAL_WINDOW_MS
       ) {
         throw new CheckInCorrectionError(
-          "Quick Reversal is limited to your own most recent Check-in within 30 seconds.",
+          "Quick Reversal is limited to your own most recent check-in within 30 seconds.",
         );
       }
       kind = "quick";
@@ -153,7 +153,7 @@ export function createCheckInCorrectionService({
         createdAt: reversedAt,
       })
       .returning({ id: checkInReversal.id });
-    if (!reversal) throw new Error("Could not record the Check-in reversal.");
+    if (!reversal) throw new Error("Could not record the check-in reversal.");
     await transaction
       .update(checkIn)
       .set({ invalidatedAt: reversedAt })
@@ -199,7 +199,7 @@ export function createCheckInCorrectionService({
       .limit(1);
     if (!assignment) {
       throw new CheckInCorrectionError(
-        "Only an Organizer can review active Check-ins.",
+        "Only an organizer can review active check-ins.",
       );
     }
 

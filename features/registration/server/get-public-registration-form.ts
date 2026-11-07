@@ -5,7 +5,11 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { parseRegistrationFieldAnswerType } from "@/features/registration/registration-form-schema";
 import type { PublicRegistrationField } from "@/features/registration/registration-submission";
 import { db } from "@/lib/db";
-import { registrationField, registrationFieldChoice } from "@/lib/db/schema";
+import {
+  registration,
+  registrationField,
+  registrationFieldChoice,
+} from "@/lib/db/schema";
 
 export async function getPublicRegistrationForm(eventId: string) {
   const fields = await db
@@ -64,4 +68,22 @@ export async function getPublicRegistrationForm(eventId: string) {
     answerType: parseRegistrationFieldAnswerType(field.answerType),
     choices: choicesByField.get(field.id) ?? [],
   })) satisfies PublicRegistrationField[];
+}
+
+export async function findConfirmedRegistration(
+  eventId: string,
+  normalizedEmail: string,
+) {
+  const [found] = await db
+    .select({ id: registration.id })
+    .from(registration)
+    .where(
+      and(
+        eq(registration.eventId, eventId),
+        eq(registration.normalizedEmail, normalizedEmail),
+        eq(registration.status, "confirmed"),
+      ),
+    )
+    .limit(1);
+  return found?.id ?? null;
 }

@@ -5,6 +5,7 @@ import {
   IconCircleCheck,
   IconClockExclamation,
   IconClockX,
+  IconCloudOff,
   IconCloudUpload,
   IconCopyCheck,
   IconHelpHexagon,
@@ -79,7 +80,7 @@ export const outcomePresentation: Record<AdmissionOutcome, Presentation> = {
   provisional: {
     title: "Checked in",
     description:
-      "Let them through. Saved on this phone; reconnect to reconcile it with other scanners. Any conflict stays visible.",
+      "Let them through. Saved on this phone, and it syncs when the signal returns.",
     icon: IconCloudUpload,
     tone: "provisional",
     qualifier: "Offline, not confirmed yet",
@@ -93,14 +94,14 @@ export const outcomePresentation: Record<AdmissionOutcome, Presentation> = {
   },
   conflict: {
     title: "Organizer review needed",
-    description: "Scanners disagree about this ticket. Ask an organizer to resolve it before admitting the guest.",
+    description: "Two phones disagree about this ticket. Ask an organizer before letting them in.",
     icon: IconAlertTriangle,
     tone: "warning",
   },
   invalid: {
     title: "Invalid ticket",
     description:
-      "This code was not issued by EventPass. Ask the guest to open their ticket email.",
+      "This is not an EventPass ticket. Ask the guest to open their ticket email.",
     icon: IconAlertTriangle,
     tone: "destructive",
   },
@@ -153,6 +154,20 @@ export const outcomePresentation: Record<AdmissionOutcome, Presentation> = {
     icon: IconLock,
     tone: "warning",
   },
+  signed_out: {
+    title: "Sign in again",
+    description:
+      "This phone was signed out, so tickets can't be checked. Your access is fine.",
+    icon: IconLock,
+    tone: "warning",
+  },
+  no_guest_list: {
+    title: "No guest list on this phone",
+    description:
+      "Tickets can't be checked without signal until the list is saved here. Get signal once and tap Load guest list.",
+    icon: IconCloudOff,
+    tone: "warning",
+  },
   snapshot_stale: {
     title: "Refresh this phone",
     description: "The guest list on this phone is out of date. Connect and refresh it before scanning.",
@@ -163,6 +178,9 @@ export const outcomePresentation: Record<AdmissionOutcome, Presentation> = {
 
 export function ScanOutcome({
   outcome,
+  title,
+  description,
+  toneOverride,
   attendeeName,
   ticketCode,
   actions,
@@ -171,6 +189,10 @@ export function ScanOutcome({
   titleAs: Title = "h2",
 }: {
   outcome: AdmissionOutcome;
+  /** Replace the wording when the phone knows less than the outcome claims. */
+  title?: string;
+  description?: string;
+  toneOverride?: ScanTone;
   attendeeName?: string | null;
   ticketCode?: string | null;
   /** Exactly one next action belongs here. */
@@ -195,7 +217,7 @@ export function ScanOutcome({
   titleAs?: "h2" | "h3" | "p";
 }) {
   const presentation = outcomePresentation[outcome];
-  const tone = TONE_STYLES[presentation.tone];
+  const tone = TONE_STYLES[toneOverride ?? presentation.tone];
   const OutcomeIcon = presentation.icon;
 
   return (
@@ -217,7 +239,10 @@ export function ScanOutcome({
           buttons sit at the bottom edge, where a thumb is. */}
       <OutcomeIcon
         aria-hidden="true"
-        className={cn("size-20 shrink-0", actions ? "mt-auto" : null)}
+        className={cn(
+          "size-20 shrink-0 [@media(max-height:480px)]:hidden",
+          actions ? "mt-auto" : null,
+        )}
         stroke={1.75}
       />
 
@@ -238,11 +263,11 @@ export function ScanOutcome({
 
       {/* Sized to read from arm's length. */}
       <Title data-slot="scan-title" className="type-door">
-        {presentation.title}
+        {title ?? presentation.title}
       </Title>
 
       {attendeeName ? (
-        <p data-slot="scan-guest" className="text-3xl font-headline text-balance sm:text-4xl">
+        <p data-slot="scan-guest" className="max-w-full text-3xl font-headline text-balance wrap-anywhere sm:text-4xl">
           {attendeeName}
         </p>
       ) : null}
@@ -254,7 +279,7 @@ export function ScanOutcome({
       ) : null}
 
       <p data-slot="scan-detail" className="max-w-md text-lg font-medium text-pretty">
-        {presentation.description}
+        {description ?? presentation.description}
       </p>
 
       {actions ? (

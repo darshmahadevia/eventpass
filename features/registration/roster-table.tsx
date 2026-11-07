@@ -28,6 +28,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ManageGuest } from "@/features/registration/manage-guest";
+import { formatTicketCode } from "@/features/tickets/ticket-code";
 import type { RosterStatusKey } from "@/features/registration/roster-status";
 import {
   ROSTER_PAGE_SIZE,
@@ -79,6 +81,7 @@ function formatDay(value: Date, timeZone: string) {
 
 export function RosterTable({
   roster,
+  eventId,
   eventTimeZone,
   /**
    * Built by the page, which owns the current search params — so paging keeps
@@ -88,6 +91,7 @@ export function RosterTable({
   hasActiveSearch,
 }: {
   roster: EventRoster;
+  eventId: string;
   eventTimeZone: string;
   nextHref: string | null;
   hasActiveSearch: boolean;
@@ -103,13 +107,13 @@ export function RosterTable({
             </EmptyMedia>
             <EmptyTitle>
               {hasActiveSearch
-                ? "Nothing matches"
-                : "No registrations yet"}
+                ? "Nobody matches"
+                : "No guests yet"}
             </EmptyTitle>
             <EmptyDescription>
               {hasActiveSearch
                 ? "Try a shorter search or a different status."
-                : "Guests appear here as they register, or import a list below."}
+                : "Guests appear here as they register. You can also add one yourself, or import a list below."}
             </EmptyDescription>
           </EmptyHeader>
           {!hasActiveSearch ? (
@@ -131,25 +135,34 @@ export function RosterTable({
           <TableHeader className="bg-muted/50 text-xs text-muted-foreground">
             <TableRow>
               <TableHead scope="col">Guest</TableHead>
-              <TableHead scope="col">Status</TableHead>
+              <TableHead scope="col" className="hidden sm:table-cell">Status</TableHead>
               <TableHead scope="col" className="hidden md:table-cell">Ticket</TableHead>
               <TableHead scope="col" className="hidden md:table-cell">Registered</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {roster.rows.map((row) => {
-              const StatusIcon = STATUS_ICONS[row.status.key];
               const hasDetail = row.answers.length > 0;
 
               return (
                 <TableRow key={row.registrationId} className="align-top">
                   <TableCell className="whitespace-normal">
-                    <div className="font-semibold text-foreground">
+                    <div className="font-semibold wrap-anywhere text-foreground">
                       {row.attendeeName}
                     </div>
-                    <div className="text-xs break-all text-muted-foreground">
+                    <div className="text-xs wrap-anywhere text-muted-foreground">
                       {row.email}
                     </div>
+                    {/* On a phone the status lives here, so the address gets
+                        the full width instead of breaking mid-domain. */}
+                    <div className="mt-1.5 sm:hidden">
+                      <RosterStatus row={row} eventId={eventId} eventTimeZone={eventTimeZone} />
+                    </div>
+                    {row.ticketCode ? (
+                      <div className="mt-1 font-mono text-xs text-muted-foreground md:hidden">
+                        {formatTicketCode(row.ticketCode)}
+                      </div>
+                    ) : null}
                     {row.source === "imported" ? (
                       <Badge variant="outline" className="mt-1.5 text-xs">
                         Imported
@@ -157,7 +170,7 @@ export function RosterTable({
                     ) : null}
                     {hasDetail ? (
                       <details className="mt-2 text-xs">
-                        <summary className="w-fit cursor-pointer rounded text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+                        <summary className="flex min-h-6 w-fit cursor-pointer items-center rounded text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
                           {row.answers.length} answer
                           {row.answers.length === 1 ? "" : "s"}
                         </summary>
@@ -182,36 +195,14 @@ export function RosterTable({
                     ) : null}
                   </TableCell>
 
-                  <TableCell className="whitespace-normal">
-                    <Badge
-                      variant={BADGE_VARIANTS[row.status.emphasis]}
-                      className="gap-1.5"
-                    >
-                      <StatusIcon aria-hidden="true" className="size-3.5" />
-                      {row.status.label}
-                    </Badge>
-                    {row.status.qualifier ? (
-                      <p className="mt-1.5 text-xs text-muted-foreground">
-                        {row.status.qualifier}
-                      </p>
-                    ) : null}
-                    {row.status.deadline ? (
-                      <p className="mt-1.5 text-xs text-muted-foreground">
-                        {row.status.deadline.kind === "capacity_hold"
-                          ? "Place held until"
-                          : "Offer open until"}{" "}
-                        {formatMoment(row.status.deadline.at, eventTimeZone)}
-                      </p>
-                    ) : null}
-                    {row.checkedInAt ? (
-                      <p className="mt-1.5 text-xs text-muted-foreground">
-                        {formatMoment(row.checkedInAt, eventTimeZone)}
-                      </p>
-                    ) : null}
+                  <TableCell className="hidden whitespace-normal sm:table-cell">
+                    <RosterStatus row={row} eventId={eventId} eventTimeZone={eventTimeZone} />
                   </TableCell>
 
                   <TableCell className="hidden font-mono text-xs md:table-cell">
-                    {row.ticketCode ?? (
+                    {row.ticketCode ? (
+                      formatTicketCode(row.ticketCode)
+                    ) : (
                       <span className="font-sans text-muted-foreground">—</span>
                     )}
                   </TableCell>
@@ -242,6 +233,58 @@ export function RosterTable({
   );
 }
 
+function RosterStatus({
+  row,
+  eventId,
+  eventTimeZone,
+}: {
+  row: EventRoster["rows"][number];
+  eventId: string;
+  eventTimeZone: string;
+}) {
+  const StatusIcon = STATUS_ICONS[row.status.key];
+  return (
+    <>
+      <Badge variant={BADGE_VARIANTS[row.status.emphasis]} className="gap-1.5">
+        <StatusIcon aria-hidden="true" className="size-3.5" />
+        {row.status.label}
+      </Badge>
+      {row.status.qualifier ? (
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          {row.status.qualifier}
+        </p>
+      ) : null}
+      {row.status.deadline ? (
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          {row.status.deadline.kind === "capacity_hold"
+            ? "Place held until"
+            : "Offer open until"}{" "}
+          {formatMoment(row.status.deadline.at, eventTimeZone)}
+        </p>
+      ) : null}
+      {row.checkedInAt ? (
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          {formatMoment(row.checkedInAt, eventTimeZone)}
+        </p>
+      ) : null}
+      {["confirmed", "checked_in", "unconfirmed", "waitlisted"].includes(
+        row.status.key,
+      ) ? (
+        <div>
+          <ManageGuest
+            eventId={eventId}
+            registrationId={row.registrationId}
+            name={row.attendeeName}
+            email={row.email}
+            ticketCode={row.ticketCode}
+            canAdmit={row.status.key === "confirmed" && Boolean(row.ticketCode)}
+          />
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 function RosterCount({ roster }: { roster: EventRoster }) {
   const isFiltered = roster.matchingCount !== roster.totalCount;
 
@@ -254,8 +297,8 @@ function RosterCount({ roster }: { roster: EventRoster }) {
       aria-live="polite"
     >
       {isFiltered
-        ? `${roster.matchingCount.toLocaleString()} of ${roster.totalCount.toLocaleString()} registrations match`
-        : `${roster.totalCount.toLocaleString()} registration${roster.totalCount === 1 ? "" : "s"}`}
+        ? `${roster.matchingCount.toLocaleString()} of ${roster.totalCount.toLocaleString()} guests match`
+        : `${roster.totalCount.toLocaleString()} guest${roster.totalCount === 1 ? "" : "s"}`}
     </p>
   );
 }

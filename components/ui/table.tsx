@@ -4,14 +4,29 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+/**
+ * `stack` reflows the rows into labelled blocks whenever the table runs out of
+ * room, measured from its own container rather than the viewport: a table beside
+ * the event rail is short of space on a laptop as well as on a phone. Give each
+ * cell a `data-label`. Without it, columns slid off-screen behind a scroller
+ * and took the row's actions with them.
+ */
+function Table({
+  className,
+  stack = false,
+  ...props
+}: React.ComponentProps<"table"> & { stack?: boolean }) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className={cn(
+        "relative w-full",
+        stack ? "@container/table" : "overflow-x-auto",
+      )}
     >
       <table
         data-slot="table"
+        data-stack={stack ? "" : undefined}
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
       />

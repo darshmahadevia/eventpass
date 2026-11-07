@@ -22,6 +22,7 @@ export default async function WorkspaceLayout({
     <div className="flex min-h-svh flex-col bg-muted/50 dark:bg-background">
       <WorkspaceHeader
         email={staffSession.user.email}
+        name={staffSession.user.name}
         signOutAction={signOutAction}
         showAdmin={isPlatformAdmin({
           userEmail: staffSession.user.email,

@@ -154,7 +154,7 @@ export function TicketStub({
                   height={320}
                   unoptimized
                   priority
-                  className="size-40 @min-[42rem]:size-48"
+                  className="size-56 @min-[42rem]:size-48"
                 />
               </div>
               <div className="flex flex-col gap-1">
@@ -178,7 +178,7 @@ export function TicketStub({
               />
               <p className="text-sm font-medium">No active ticket</p>
               <p className="max-w-xs text-xs text-muted-foreground">
-                This ticket was replaced. Only the current one will be admitted
+                This ticket no longer works. Only a current ticket is admitted
                 at the door.
               </p>
             </div>

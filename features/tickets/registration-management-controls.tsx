@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import {
   IconAlertCircle,
+  IconCheck,
   IconEdit,
   IconMailForward,
   IconRefresh,
@@ -51,9 +52,13 @@ type FieldView = RegistrationManagementView["fields"][number];
 function Feedback({ state }: { state: ManagementActionState }) {
   if (state.status === "idle") return null;
   return (
-    <Alert variant={state.status === "error" ? "destructive" : "default"}>
-      <IconAlertCircle aria-hidden="true" />
-      <AlertTitle>{state.status === "success" ? "Done" : "Action not completed"}</AlertTitle>
+    <Alert variant={state.status === "error" ? "destructive" : "success"}>
+      {state.status === "error" ? (
+        <IconAlertCircle aria-hidden="true" />
+      ) : (
+        <IconCheck aria-hidden="true" />
+      )}
+      <AlertTitle>{state.status === "success" ? "Done" : "That did not work"}</AlertTitle>
       <AlertDescription>{state.message}</AlertDescription>
     </Alert>
   );
@@ -202,10 +207,10 @@ export function RegistrationManagementControls({
         <section aria-labelledby="edit-registration-heading">
           <div>
             <h2 id="edit-registration-heading" className="text-lg font-headline">
-              Registration details
+              Your details
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Update your details before registration closes.
+              You can change these until registration closes.
             </p>
           </div>
           <form action={editAction} className="mt-6 space-y-6">
@@ -226,9 +231,9 @@ export function RegistrationManagementControls({
                 <FieldError errors={editState.fieldErrors?.name?.map((message) => ({ message }))} />
               </Field>
               <Field>
-                <FieldLabel htmlFor="management-email">Verified email address</FieldLabel>
+                <FieldLabel htmlFor="management-email">Email address</FieldLabel>
                 <Input id="management-email" value={email} disabled readOnly />
-                <FieldDescription>The verified email address cannot be changed.</FieldDescription>
+                <FieldDescription>Your ticket is tied to this address, so it cannot be changed.</FieldDescription>
               </Field>
               {fields.map((field) => (
                 <EditableAnswer
@@ -248,22 +253,27 @@ export function RegistrationManagementControls({
       ) : null}
 
       <section aria-labelledby="ticket-actions-heading" className="border-t pt-8">
-        <h2 id="ticket-actions-heading" className="text-lg font-headline">Ticket actions</h2>
+        <h2 id="ticket-actions-heading" className="text-lg font-headline">Need your ticket again?</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Resending keeps the current ticket unchanged. Replacement permanently invalidates it.
+          Email this same ticket to yourself. If someone else may have it,
+          replace it: the old code stops working and you get a new one.
         </p>
-        <div className="mt-5 space-y-4">
-          <Feedback state={resendState} />
-          <Feedback state={replaceState} />
-          <form action={resendAction}>
-            <Button type="submit" variant="outline" disabled={resendPending || unavailable}>
+        <div className="mt-5 flex flex-wrap gap-3">
+          {resendState.status !== "idle" || replaceState.status !== "idle" ? (
+            <div className="w-full space-y-3">
+              <Feedback state={resendState} />
+              <Feedback state={replaceState} />
+            </div>
+          ) : null}
+          <form action={resendAction} className="max-sm:w-full">
+            <Button type="submit" variant="outline" className="max-sm:w-full" disabled={resendPending || unavailable}>
               {resendPending ? <Spinner data-icon="inline-start" /> : <IconMailForward data-icon="inline-start" />}
-              {resendPending ? "Sending…" : "Resend existing ticket"}
+              {resendPending ? "Sending…" : "Email my ticket"}
             </Button>
           </form>
           {canReplaceOrCancel ? (
             <AlertDialog>
-              <AlertDialogTrigger render={<Button variant="outline" />}>
+              <AlertDialogTrigger render={<Button variant="outline" className="max-sm:w-full" />}>
                 <IconRefresh data-icon="inline-start" />
                 Replace ticket
               </AlertDialogTrigger>
@@ -290,14 +300,15 @@ export function RegistrationManagementControls({
 
       {canReplaceOrCancel ? (
         <section aria-labelledby="cancel-registration-heading" className="border-t pt-8">
-          <h2 id="cancel-registration-heading" className="text-lg font-headline">Cancel registration</h2>
+          <h2 id="cancel-registration-heading" className="text-lg font-headline">Can&apos;t make it?</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            This frees up the place and stops the ticket working, for good.
+            Canceling frees your place for someone else. Your ticket stops
+            working for good.
           </p>
           <div className="mt-5 space-y-4">
             <Feedback state={cancelState} />
             <AlertDialog>
-              <AlertDialogTrigger render={<Button variant="destructive" />}>
+              <AlertDialogTrigger render={<Button variant="destructive" className="max-sm:w-full" />}>
                 <IconTicketOff data-icon="inline-start" />
                 Cancel registration
               </AlertDialogTrigger>
@@ -312,7 +323,7 @@ export function RegistrationManagementControls({
                 <AlertDialogFooter>
                   <AlertDialogCancel>Keep it</AlertDialogCancel>
                   <form action={cancelAction}>
-                    <AlertDialogAction type="submit" variant="destructive" disabled={cancelPending}>
+                    <AlertDialogAction type="submit" variant="destructive-solid" disabled={cancelPending}>
                       Cancel registration
                     </AlertDialogAction>
                   </form>

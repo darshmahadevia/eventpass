@@ -41,8 +41,7 @@ export default async function ConfirmRegistrationVerificationPage({
             Confirm your email
           </h1>
           <p className="mt-4 max-w-xl text-reading text-muted-foreground">
-            Confirming verifies this address and continues your registration for
-            this event.
+            One tap to confirm this is your email and finish registering.
           </p>
           <Alert className="mt-8">
             <IconMailCheck aria-hidden="true" />

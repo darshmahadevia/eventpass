@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { useLeaveGuard } from "@/components/use-leave-guard";
 import {
   IconArchive,
   IconArrowDown,
@@ -15,6 +16,17 @@ import {
 
 import { saveRegistrationFormAction } from "@/app/(workspace)/events/[eventId]/(sections)/form/actions";
 import { initialSaveRegistrationFormState } from "@/app/(workspace)/events/[eventId]/(sections)/form/form-state";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -52,6 +64,44 @@ const answerTypeItems = registrationFieldAnswerTypes.map((value) => ({
   value,
   label: registrationFieldAnswerTypeLabels[value],
 }));
+
+function serializeDefinition(fields: OrganizerRegistrationField[]) {
+  return JSON.stringify(
+    fields.map((field) => ({
+      id: field.id,
+      answerType: field.answerType,
+      label: field.label,
+      helpText: field.helpText,
+      required: field.required,
+      archived: field.archived,
+      choices: field.choices,
+    })),
+  );
+}
+
+/** Every problem by question, in plain words, before anything reaches the server. */
+function findProblems(fields: OrganizerRegistrationField[]) {
+  const problems = new Map<string, string>();
+  for (const field of fields) {
+    if (field.archived) continue;
+    const isChoice =
+      field.answerType === "single_choice" ||
+      field.answerType === "multiple_choice";
+    const choices = field.choices
+      .filter((choice) => !choice.archived)
+      .map((choice) => choice.label.trim().toLowerCase());
+    if (!field.label.trim()) {
+      problems.set(field.id, "Write the question.");
+    } else if (isChoice && choices.length === 0) {
+      problems.set(field.id, "Add at least one choice.");
+    } else if (isChoice && choices.some((choice) => !choice)) {
+      problems.set(field.id, "Fill in every choice, or remove the empty ones.");
+    } else if (isChoice && new Set(choices).size !== choices.length) {
+      problems.set(field.id, "Two choices are the same. Make each one different.");
+    }
+  }
+  return problems;
+}
 
 function newChoice() {
   return { id: crypto.randomUUID(), label: "", archived: false };
@@ -180,12 +230,12 @@ function RegistrationFormPreview({ fields }: { fields: OrganizerRegistrationFiel
   const activeFields = fields.filter((field) => !field.archived);
 
   return (
-    <aside className="lg:sticky lg:top-6 lg:self-start" aria-labelledby="preview-heading">
+    <aside className="lg:self-start" aria-labelledby="preview-heading">
       <div className="panel">
         <div className="border-b p-5 sm:p-6">
-          <h2 id="preview-heading" className="text-lg font-headline">Attendee preview</h2>
+          <h2 id="preview-heading" className="text-lg font-headline">Guest preview</h2>
           <p className="mt-1 text-support text-muted-foreground">
-            Test the labels, help text, required state, and keyboard order.
+            Try the form the way a guest will. Nothing is submitted.
           </p>
         </div>
         <form
@@ -205,9 +255,9 @@ function RegistrationFormPreview({ fields }: { fields: OrganizerRegistrationFiel
                 ?.focus();
               return;
             }
-            setStatus("Validation passed. This preview does not submit a registration.");
+            setStatus("Looks good. A guest could submit this.");
           }}
-          onInvalid={() => setStatus("Complete the required fields to test validation.")}
+          onInvalid={() => setStatus("Fill in the required fields to test the form.")}
         >
           <FieldGroup>
             <Field>
@@ -243,7 +293,7 @@ function RegistrationFormPreview({ fields }: { fields: OrganizerRegistrationFiel
               <AttendeeFieldPreview key={field.id} field={field} />
             ))}
           </FieldGroup>
-          <Button type="submit" variant="outline">Test validation</Button>
+          <Button type="submit" variant="outline">Test the form</Button>
           <p className="min-h-5 text-sm text-muted-foreground" aria-live="polite">
             {status}
           </p>
@@ -263,7 +313,6 @@ function ChoiceEditor({
   return (
     <FieldSet className="rounded-xl bg-muted/50 p-4">
       <FieldLegend variant="label">Choices</FieldLegend>
-      <FieldDescription>Choice identities remain stable after responses exist.</FieldDescription>
       <FieldGroup className="gap-3">
         {field.choices.map((choice, index) => (
           <Field key={choice.id} orientation="horizontal" data-disabled={choice.archived}>
@@ -320,6 +369,7 @@ function FieldEditor({
   total,
   eventHasResponses,
   persisted,
+  problem,
   onChange,
   onMove,
   onRemove,
@@ -329,6 +379,7 @@ function FieldEditor({
   total: number;
   eventHasResponses: boolean;
   persisted: boolean;
+  problem?: string;
   onChange: (field: OrganizerRegistrationField) => void;
   onMove: (offset: -1 | 1) => void;
   onRemove: () => void;
@@ -343,23 +394,44 @@ function FieldEditor({
             {field.label || `Question ${index + 1}`}
           </h3>
           {field.responseCount > 0 ? (
-            <p className="text-xs text-muted-foreground">Answer type locked by existing responses</p>
+            <p className="text-xs text-muted-foreground">Guests have answered, so the answer type is locked</p>
           ) : null}
         </div>
-        <div className="flex items-center gap-1">
-          <Button type="button" variant="ghost" size="icon-sm" aria-label="Move question up" disabled={index === 0} onClick={() => onMove(-1)}>
+        <div className="-mr-2 flex items-center">
+          <Button id={`field-${field.id}-up`} type="button" variant="ghost" size="icon-sm" title="Move up" aria-label="Move question up" disabled={index === 0} onClick={() => onMove(-1)}>
             <IconArrowUp />
           </Button>
-          <Button type="button" variant="ghost" size="icon-sm" aria-label="Move question down" disabled={index === total - 1} onClick={() => onMove(1)}>
+          <Button id={`field-${field.id}-down`} type="button" variant="ghost" size="icon-sm" title="Move down" aria-label="Move question down" disabled={index === total - 1} onClick={() => onMove(1)}>
             <IconArrowDown />
           </Button>
-          <Button type="button" variant="ghost" size="icon-sm" aria-label={field.archived ? "Restore question" : "Archive question"} onClick={() => onChange({ ...field, archived: !field.archived })}>
+          <Button type="button" variant="ghost" size="icon-sm" title={field.archived ? "Bring back" : "Hide from guests, keep answers"} aria-label={field.archived ? "Restore question" : "Hide question from guests"} onClick={() => onChange({ ...field, archived: !field.archived })}>
             {field.archived ? <IconRestore /> : <IconArchive />}
           </Button>
           {field.responseCount === 0 ? (
-            <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove question" onClick={onRemove}>
-              <IconTrash />
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <Button type="button" variant="ghost" size="icon-sm" title="Delete" aria-label="Delete question" />
+                }
+              >
+                <IconTrash />
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this question?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {field.label || "This question"} is removed from the form
+                    when you save.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep it</AlertDialogCancel>
+                  <AlertDialogAction variant="destructive-solid" onClick={onRemove}>
+                    Delete question
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           ) : null}
         </div>
       </div>
@@ -371,11 +443,17 @@ function FieldEditor({
             <Input
               id={`field-${field.id}-label`}
               value={field.label}
-              placeholder="What should attendees answer?"
+              placeholder="What do you want to ask?"
               maxLength={200}
               disabled={field.archived}
+              aria-invalid={Boolean(problem)}
               onChange={(event) => onChange({ ...field, label: event.target.value })}
             />
+            {problem ? (
+              <p role="alert" className="text-sm text-destructive-text">
+                {problem}
+              </p>
+            ) : null}
           </Field>
           <Field>
             <FieldLabel htmlFor={`field-${field.id}-type`}>Answer type</FieldLabel>
@@ -432,7 +510,7 @@ function FieldEditor({
           <FieldContent>
             <FieldLabel htmlFor={`field-${field.id}-required`} className="font-normal">Required</FieldLabel>
             {eventHasResponses && !persisted ? (
-              <FieldDescription>New questions stay optional after responses exist.</FieldDescription>
+              <FieldDescription>Questions added after guests have registered must stay optional.</FieldDescription>
             ) : null}
           </FieldContent>
         </Field>
@@ -450,6 +528,7 @@ export function RegistrationFormBuilder({
   initialFields: OrganizerRegistrationField[];
 }) {
   const [fields, setFields] = useState(initialFields);
+  const focusNext = useRef<string | null>(null);
   const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
   const mobileToolbar = useRef<HTMLDivElement>(null);
 
@@ -457,8 +536,20 @@ export function RegistrationFormBuilder({
     setMobileView(mobileView === "edit" ? "preview" : "edit");
     requestAnimationFrame(() => mobileToolbar.current?.scrollIntoView({ block: "start" }));
   }
+  const [savedDefinition, setSavedDefinition] = useState(() =>
+    serializeDefinition(initialFields),
+  );
   const [state, formAction, isPending] = useActionState(
-    saveRegistrationFormAction.bind(null, eventId),
+    async (
+      previous: Awaited<ReturnType<typeof saveRegistrationFormAction>>,
+      formData: FormData,
+    ) => {
+      const result = await saveRegistrationFormAction(eventId, previous, formData);
+      if (result.status === "success") {
+        setSavedDefinition(String(formData.get("definition")));
+      }
+      return result;
+    },
     initialSaveRegistrationFormState,
   );
   const eventHasResponses = initialFields.some((field) => field.responseCount > 0);
@@ -469,6 +560,14 @@ export function RegistrationFormBuilder({
   }
 
   function moveField(index: number, offset: -1 | 1) {
+    const moved = fields[index];
+    const target = index + offset;
+    if (moved) {
+      const stillMovable = target > 0 && target < fields.length - 1;
+      const direction = offset < 0 ? "up" : "down";
+      const opposite = offset < 0 ? "down" : "up";
+      focusNext.current = `field-${moved.id}-${stillMovable ? direction : opposite}`;
+    }
     setFields((current) => {
       const target = index + offset;
       const currentField = current[index];
@@ -481,48 +580,65 @@ export function RegistrationFormBuilder({
     });
   }
 
-  const definition = fields.map((field) => ({
-    id: field.id,
-    answerType: field.answerType,
-    label: field.label,
-    helpText: field.helpText,
-    required: field.required,
-    archived: field.archived,
-    choices: field.choices,
-  }));
+  const definition = serializeDefinition(fields);
+  const dirty = definition !== savedDefinition;
+  const problems = findProblems(fields);
+  const [showProblems, setShowProblems] = useState(false);
+
+  // Questions live only in this page until saved, so leaving would lose them.
+  useLeaveGuard(dirty && !isPending);
+
+  // Adding, moving, and deleting change what is on screen, and a removed button
+  // takes keyboard focus with it. Each one says where focus should land next.
+  useEffect(() => {
+    if (!focusNext.current) return;
+    document.getElementById(focusNext.current)?.focus();
+    focusNext.current = null;
+  }, [fields]);
+
+  const saveLabel = isPending ? "Saving…" : dirty ? "Save form" : "Saved";
+  const saveIcon = isPending ? (
+    <Spinner data-icon="inline-start" />
+  ) : dirty ? null : (
+    <IconCheck data-icon="inline-start" />
+  );
 
   return (
     <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.75fr)]">
-      <div ref={mobileToolbar} className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b bg-background py-3 lg:hidden">
+      <div ref={mobileToolbar} className="sticky top-12 z-10 -mx-4 flex scroll-mt-12 items-center justify-between gap-3 border-b bg-background px-4 py-2.5 sm:-mx-6 sm:px-6 lg:hidden">
         <Button type="button" variant="outline" aria-controls="registration-form-editor registration-form-preview" aria-expanded={mobileView === "preview"} onClick={switchMobileView}>
           {mobileView === "edit" ? <IconEye data-icon="inline-start" /> : <IconPencil data-icon="inline-start" />}
           {mobileView === "edit" ? "Preview form" : "Edit questions"}
         </Button>
-        <Button type="submit" form="registration-form-editor" disabled={isPending} onClick={() => setMobileView("edit")}>
-          {isPending ? <Spinner data-icon="inline-start" /> : null}
-          {isPending ? "Saving…" : "Save form"}
+        <Button type="submit" form="registration-form-editor" disabled={isPending || !dirty} onClick={() => setMobileView("edit")}>
+          {saveIcon}
+          {saveLabel}
         </Button>
       </div>
-      <form id="registration-form-editor" action={formAction} className={cn("min-w-0 flex-col gap-5 lg:flex", mobileView === "edit" ? "flex" : "hidden")}>
-        <input type="hidden" name="definition" value={JSON.stringify(definition)} />
-        {state.status !== "idle" ? (
-          <Alert variant={state.status === "error" ? "destructive" : "default"}>
-            {state.status === "success" ? <IconCheck /> : null}
-            <AlertTitle>{state.status === "success" ? "Saved" : "Form not saved"}</AlertTitle>
+      <form
+        id="registration-form-editor"
+        action={formAction}
+        onSubmit={(event) => {
+          const first = [...problems.keys()][0];
+          if (!first) return;
+          event.preventDefault();
+          setShowProblems(true);
+          setMobileView("edit");
+          document.getElementById(`field-${first}-label`)?.focus();
+        }}
+        className={cn("min-w-0 flex-col gap-5 lg:flex", mobileView === "edit" ? "flex" : "hidden")}>
+        <input type="hidden" name="definition" value={definition} />
+        {state.status === "error" ? (
+          <Alert variant="destructive">
+            <AlertTitle>Form not saved</AlertTitle>
             <AlertDescription>{state.message}</AlertDescription>
           </Alert>
         ) : null}
 
-        <section className="rounded-2xl border bg-muted/40 p-5 sm:p-6" aria-labelledby="built-in-heading">
-          <h2 id="built-in-heading" className="text-lg font-headline">Built-in fields</h2>
-          <p className="mt-1 text-support text-muted-foreground">
-            Name and email are fixed, required, and cannot be reordered or archived.
-          </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border bg-background px-4 py-3 text-sm font-medium">Name</div>
-            <div className="rounded-xl border bg-background px-4 py-3 text-sm font-medium">Email</div>
-          </div>
-        </section>
+        <p className="text-support text-muted-foreground">
+          Every guest gives their name and email. Add anything else you need
+          below.
+        </p>
 
         {fields.map((field, index) => (
           <FieldEditor
@@ -532,32 +648,42 @@ export function RegistrationFormBuilder({
             total={fields.length}
             eventHasResponses={eventHasResponses}
             persisted={persistedFieldIds.has(field.id)}
+            problem={showProblems ? problems.get(field.id) : undefined}
             onChange={updateField}
             onMove={(offset) => moveField(index, offset)}
-            onRemove={() => setFields((current) => current.filter((candidate) => candidate.id !== field.id))}
+            onRemove={() => {
+              focusNext.current = "add-question";
+              setFields((current) => current.filter((candidate) => candidate.id !== field.id));
+            }}
           />
         ))}
 
-        <div className="flex flex-col gap-3 rounded-2xl border border-dashed p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-sm font-medium">Add an event-specific question</h2>
-            <p className="mt-1 text-sm text-muted-foreground">You can configure its answer type after adding it.</p>
-          </div>
-          <Button type="button" variant="outline" onClick={() => setFields((current) => [...current, newField("short_text")])}>
+        <div>
+          <Button
+            id="add-question"
+            type="button"
+            variant="outline"
+            className="max-sm:w-full"
+            onClick={() => {
+              const added = newField("short_text");
+              focusNext.current = `field-${added.id}-label`;
+              setFields((current) => [...current, added]);
+            }}
+          >
             <IconPlus data-icon="inline-start" />
             Add question
           </Button>
         </div>
 
         <div className="hidden items-center justify-end border-t py-4 lg:flex">
-          <Button type="submit" size="lg" disabled={isPending}>
-            {isPending ? <Spinner data-icon="inline-start" /> : null}
-            {isPending ? "Saving…" : "Save form"}
+          <Button type="submit" size="lg" disabled={isPending || !dirty}>
+            {saveIcon}
+            {saveLabel}
           </Button>
         </div>
       </form>
 
-      <div id="registration-form-preview" className={cn("min-w-0 lg:sticky lg:top-6 lg:block", mobileView === "preview" ? "block" : "hidden")}>
+      <div id="registration-form-preview" className={cn("min-w-0 lg:sticky lg:top-22 lg:block", mobileView === "preview" ? "block" : "hidden")}>
         <RegistrationFormPreview fields={fields} />
       </div>
     </div>

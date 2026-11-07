@@ -70,7 +70,7 @@ export function AdminEventsList({
       />
 
       <div className="overflow-hidden panel">
-        <Table>
+        <Table stack>
           <TableHeader className="bg-muted/50 text-muted-foreground">
             <TableRow>
               <TableHead>Event</TableHead>
@@ -93,12 +93,12 @@ export function AdminEventsList({
                     <div className="font-medium text-foreground">{ev.name}</div>
                     <div className="font-mono text-xs text-muted-foreground">/e/{ev.slug}</div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Status">
                     <Badge variant="outline" className="capitalize">
                       {ev.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Availability">
                     {ev.suspended ? (
                       <div className="space-y-1">
                         <Badge variant="destructive" className="gap-1">
@@ -117,7 +117,7 @@ export function AdminEventsList({
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex flex-wrap items-center gap-2 @[52rem]/table:justify-end">
                       <Button
                         size="sm"
                         variant="outline"

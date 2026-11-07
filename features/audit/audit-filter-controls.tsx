@@ -64,8 +64,7 @@ export function AuditFilterControls({
         onChange={setQuery}
         pending={isPending}
         label="Search audit entries"
-        placeholder="Search actor, action, target, reason"
-        inputClassName="text-xs"
+        placeholder="Search people, actions, reasons"
       />
 
       {/* Two independent filters. Shelled separately, because as one loose row

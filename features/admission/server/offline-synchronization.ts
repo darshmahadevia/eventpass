@@ -712,7 +712,7 @@ export function createOfflineSynchronizationService({
                 })
                 .returning({ id: checkIn.id });
               if (!createdCheckIn) {
-                throw new Error("Failed to create the reconciled Check-in.");
+                throw new Error("Failed to create the reconciled check-in.");
               }
               activeCheckInsByTicket.set(ticketKey, {
                 id: createdCheckIn.id,
@@ -763,7 +763,7 @@ export function createOfflineSynchronizationService({
                   createdAt: checkInConflict.createdAt,
                 });
               if (!createdConflict) {
-                throw new Error("Could not record the Check-in Conflict.");
+                throw new Error("Could not record the check-in conflict.");
               }
               latestConflictsByTicket.set(ticketKey, {
                 id: createdConflict.id,
@@ -808,7 +808,7 @@ export function createOfflineSynchronizationService({
                     createdAt: checkInConflict.createdAt,
                   });
                 if (!createdConflict) {
-                  throw new Error("Could not record the Check-in Conflict.");
+                  throw new Error("Could not record the check-in conflict.");
                 }
                 latestConflictsByTicket.set(ticketKey, {
                   id: createdConflict.id,

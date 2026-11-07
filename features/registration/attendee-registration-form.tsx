@@ -1,7 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
-import { IconAlertCircle, IconMailForward } from "@tabler/icons-react";
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
+import { IconAlertCircle, IconArrowRight } from "@tabler/icons-react";
 
 import { submitRegistrationAction } from "@/app/e/[slug]/actions";
 import {
@@ -23,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import type { PublicRegistrationField } from "./registration-submission";
+import { rememberSentToAddress } from "./sent-to-address";
 
 function answerValue(state: RegistrationActionState, fieldId: string) {
   return state.values?.answers[fieldId];
@@ -193,22 +201,59 @@ export function AttendeeRegistrationForm({
     action,
     initialRegistrationActionState,
   );
+  const formRef = useRef<HTMLFormElement>(null);
+  // Fixing a field clears its complaint; the rest stay until the next submit.
+  const [edited, setEdited] = useState<ReadonlySet<string>>(new Set());
+  const visibleState = {
+    ...state,
+    fieldErrors: Object.fromEntries(
+      Object.entries(state.fieldErrors ?? {}).filter(
+        ([field]) => !edited.has(field),
+      ),
+    ),
+  };
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    rememberSentToAddress(String(formData.get("email") ?? ""));
+    setEdited(new Set());
+    startTransition(() => formAction(formData));
+  }
+
+  // Errors arrive from the server, so focus is moved to the first problem.
+  useEffect(() => {
+    if (state.status !== "error") return;
+    formRef.current
+      ?.querySelector<HTMLElement>('[aria-invalid="true"]')
+      ?.focus();
+  }, [state]);
 
   return (
-    <form action={formAction} className="space-y-6" noValidate>
+    <form
+      ref={formRef}
+      action={formAction}
+      onSubmit={submit}
+      onInput={(event) => {
+        const { name } = event.target as HTMLInputElement;
+        if (name) setEdited((current) => new Set(current).add(name));
+      }}
+      className="space-y-6"
+      noValidate
+    >
       {/* `status` is `"idle" | "error"`, so the non-idle branch is always the
           error — the variant ternary it carried had a branch that could not
           render. */}
       {state.status === "error" ? (
         <Alert variant="destructive">
           <IconAlertCircle aria-hidden="true" />
-          <AlertTitle>Registration not submitted</AlertTitle>
+          <AlertTitle>That did not go through</AlertTitle>
           <AlertDescription>{state.message}</AlertDescription>
         </Alert>
       ) : null}
 
       <FieldGroup>
-        <Field>
+        <Field data-invalid={Boolean(visibleState.fieldErrors?.name)}>
           {/* One treatment for "required" across this form. Name and Email
               spelled the asterisk into the label text, so a screen reader read
               "Name star" on top of the `required` the input already announces,
@@ -227,13 +272,13 @@ export function AttendeeRegistrationForm({
             maxLength={200}
             required
             disabled={pending}
-            aria-invalid={Boolean(state.fieldErrors?.name)}
+            aria-invalid={Boolean(visibleState.fieldErrors?.name)}
           />
           <FieldError
-            errors={state.fieldErrors?.name?.map((message) => ({ message }))}
+            errors={visibleState.fieldErrors?.name?.map((message) => ({ message }))}
           />
         </Field>
-        <Field>
+        <Field data-invalid={Boolean(visibleState.fieldErrors?.email)}>
           <FieldLabel htmlFor="email">
             Email address
             <span aria-hidden="true"> *</span>
@@ -248,14 +293,13 @@ export function AttendeeRegistrationForm({
             maxLength={320}
             required
             disabled={pending}
-            aria-invalid={Boolean(state.fieldErrors?.email)}
+            aria-invalid={Boolean(visibleState.fieldErrors?.email)}
           />
           <FieldDescription>
-            We’ll send a single-use verification link that expires in 15
-            minutes.
+            We’ll email you a link to confirm. Your ticket comes after that.
           </FieldDescription>
           <FieldError
-            errors={state.fieldErrors?.email?.map((message) => ({ message }))}
+            errors={visibleState.fieldErrors?.email?.map((message) => ({ message }))}
           />
         </Field>
 
@@ -268,7 +312,7 @@ export function AttendeeRegistrationForm({
               <TextAnswer
                 key={field.id}
                 field={field}
-                state={state}
+                state={visibleState}
                 pending={pending}
               />
             );
@@ -281,7 +325,7 @@ export function AttendeeRegistrationForm({
               <ChoiceAnswer
                 key={field.id}
                 field={field}
-                state={state}
+                state={visibleState}
                 pending={pending}
               />
             );
@@ -290,7 +334,7 @@ export function AttendeeRegistrationForm({
             <AcknowledgmentAnswer
               key={field.id}
               field={field}
-              state={state}
+              state={visibleState}
               pending={pending}
             />
           );
@@ -306,20 +350,16 @@ export function AttendeeRegistrationForm({
         aria-hidden="true"
       />
 
-      <p className="text-support text-muted-foreground">
-        Submitting does not confirm your place. Check your email for the next
-        step.
-      </p>
       <Button type="submit" size="lg" className="w-full" disabled={pending}>
         {pending ? (
           <>
             <Spinner data-icon="inline-start" />
-            Sending verification link…
+            Sending…
           </>
         ) : (
           <>
-            <IconMailForward data-icon="inline-start" />
-            Send verification link
+            Continue
+            <IconArrowRight data-icon="inline-end" />
           </>
         )}
       </Button>

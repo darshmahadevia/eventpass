@@ -7,6 +7,7 @@ import {
   CheckInCorrectionError,
   reverseCheckIn,
 } from "@/features/admission/server/check-in-corrections";
+import { findGuests } from "@/features/admission/server/find-guests";
 import { EventSuspendedError } from "@/features/events/server/event-suspension";
 import type { AdmissionResult } from "@/features/admission/server/admission-application";
 import type { ScannerPreparationResult } from "@/features/admission/offline-snapshot";
@@ -41,7 +42,7 @@ export async function scanTicketAction(values: {
   overrideReason?: string;
 }): Promise<AdmissionResult> {
   const session = await getActiveStaffSession();
-  if (!session) return { outcome: "unauthorized" };
+  if (!session) return { outcome: "signed_out" };
   const parsed = scanInputSchema.safeParse(values);
   if (!parsed.success) return { outcome: "invalid" };
 
@@ -49,6 +50,12 @@ export async function scanTicketAction(values: {
     ...parsed.data,
     actorUserId: session.user.id,
   });
+}
+
+export async function findGuestsAction(eventId: string, query: string) {
+  const session = await getActiveStaffSession();
+  if (!session || query.trim().length < 2) return [];
+  return findGuests(eventId, session.user.id, query.slice(0, 80));
 }
 
 export async function quickReverseCheckInAction(values: {
@@ -60,7 +67,7 @@ export async function quickReverseCheckInAction(values: {
   if (!session) {
     return {
       outcome: "error" as const,
-      message: "Sign in again to reverse this Check-in.",
+      message: "Sign in again to reverse this check-in.",
     };
   }
   const parsed = reversalInputSchema.safeParse(values);
@@ -80,7 +87,7 @@ export async function quickReverseCheckInAction(values: {
         error instanceof CheckInCorrectionError ||
         error instanceof EventSuspendedError
           ? error.message
-          : "This Check-in could not be reversed.",
+          : "This check-in could not be reversed.",
     };
   }
 }

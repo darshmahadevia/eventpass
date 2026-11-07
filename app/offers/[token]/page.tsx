@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { IconClock, IconTicket } from "@tabler/icons-react";
 
 import { EventPassMark } from "@/components/eventpass-mark";
@@ -29,15 +28,6 @@ export default async function AdmissionOfferPage({
   const [{ token }, query] = await Promise.all([params, searchParams]);
   const offer = await getAdmissionOfferView(token);
   const outcome = typeof query.outcome === "string" ? query.outcome : "";
-  if (
-    !offer &&
-    outcome !== "expired" &&
-    outcome !== "consumed" &&
-    outcome !== "canceled" &&
-    outcome !== "unavailable"
-  ) {
-    notFound();
-  }
 
   return (
     <div className="flex min-h-svh flex-col bg-muted/50 dark:bg-background">
@@ -55,24 +45,24 @@ export default async function AdmissionOfferPage({
                 A place is ready for you
               </h1>
               <p className="mt-4 max-w-2xl text-muted-foreground">
-                {offer.attendeeName}, you reached the front of the verified waitlist. Claiming
-                this offer confirms your registration and issues your ticket.
+                {offer.attendeeName}, you reached the front of the waitlist. Claim
+                your place and your ticket appears right away.
               </p>
               <Alert className="mt-8">
                 <IconClock aria-hidden="true" />
-                <AlertTitle>Time-limited offer</AlertTitle>
+                <AlertTitle>Claim it in time</AlertTitle>
                 <AlertDescription>
-                  Claim by {formatAdmissionOfferDeadline(offer.expiresAt, offer.eventTimeZone)}.
-                  After this deadline the place goes to the next person waiting.
+                  Claim by {formatAdmissionOfferDeadline(offer.expiresAt, offer.eventTimeZone)},
+                  or the place goes to the next person waiting.
                 </AlertDescription>
               </Alert>
               <form action={claimAdmissionOfferAction.bind(null, token)} className="mt-8">
                 <FormSubmitButton
                   size="lg"
-                  pendingLabel="Issuing ticket"
+                  pendingLabel="Claiming your place"
                 >
                   <IconTicket aria-hidden="true" />
-                  Claim place and issue ticket
+                  Claim my place
                 </FormSubmitButton>
               </form>
             </>
@@ -97,10 +87,10 @@ export default async function AdmissionOfferPage({
               </h1>
               <p className="mt-4 text-muted-foreground">
                 {outcome === "consumed"
-                  ? "This private claim link has already been used. Open the ticket email that was sent after the claim."
+                  ? "This link has already been used. Your ticket is in the email we sent after you claimed."
                   : outcome === "canceled"
                     ? "This event was canceled, so the offer cannot be claimed and no ticket can be issued."
-                    : "The claim deadline passed, so this registration expired and the place may have gone to the next person waiting."}
+                    : "The deadline passed, so the place may have gone to the next person waiting."}
               </p>
             </>
           )}

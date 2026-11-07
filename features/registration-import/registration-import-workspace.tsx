@@ -105,7 +105,7 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
           : preview.rows.length;
       setMessage({
         kind: "success",
-        text: `${importedCount.toLocaleString()} guest${importedCount === 1 ? "" : "s"} imported. Tickets have been created; check each guest’s email delivery status in the roster.`,
+        text: `${importedCount.toLocaleString()} guest${importedCount === 1 ? "" : "s"} imported. Their tickets are on the way by email.`,
       });
       router.refresh();
     } catch (error) {
@@ -120,7 +120,7 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <form onSubmit={createPreview} className="rounded-2xl border p-5 sm:p-6">
+      <form onSubmit={createPreview} className="panel p-5 sm:p-6">
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="registration-import-file">Guest list CSV</FieldLabel>
@@ -133,15 +133,15 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
               disabled={pending !== null}
             />
             <FieldDescription>
-              Up to 500 rows and 512 KB. Include name and email headers; custom
-              columns should match your registration question labels. Include
-              required questions. Separate multiple-choice answers with semicolons.
+              Up to 500 rows. Needs name and email columns, plus a column for
+              each required question, titled the same as the question. Separate
+              multiple answers with semicolons.
             </FieldDescription>
           </Field>
-          <a href="/registration-template.csv" download className="w-fit text-sm underline underline-offset-4">
+          <a href="/registration-template.csv" download className="flex min-h-11 w-fit items-center text-sm underline underline-offset-4 md:min-h-6">
             Download CSV template
           </a>
-          <Button type="submit" className="w-fit" disabled={pending !== null}>
+          <Button type="submit" className="max-sm:w-full sm:w-fit" disabled={pending !== null}>
             {pending === "preview" ? (
               <Spinner data-icon="inline-start" />
             ) : (
@@ -153,7 +153,7 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
       </form>
 
       {message ? (
-        <Alert variant={message.kind === "error" ? "destructive" : "default"}>
+        <Alert variant={message.kind === "error" ? "destructive" : "success"}>
           {message.kind === "error" ? (
             <IconAlertCircle aria-hidden="true" />
           ) : (
@@ -172,9 +172,11 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
                 Import preview
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {preview.projectedCapacity.claimed.toLocaleString()} claimed +{" "}
                 {preview.projectedCapacity.imported.toLocaleString()} ready to
-                import of {preview.projectedCapacity.capacity.toLocaleString()} capacity.
+                import, on top of{" "}
+                {preview.projectedCapacity.claimed.toLocaleString()} of{" "}
+                {preview.projectedCapacity.capacity.toLocaleString()} places
+                already taken.
               </p>
             </div>
             <Button
@@ -198,27 +200,27 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
             ))}
           </div>
 
-          <div className="overflow-hidden rounded-2xl border">
-            <Table className="min-w-2xl">
+          <div className="overflow-hidden panel">
+            <Table stack>
               <TableHeader className="bg-muted/50 text-muted-foreground">
                 <TableRow>
                   <TableHead>Row</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Validation</TableHead>
+                  <TableHead>Check</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {preview.rows.map((row) => (
                   <TableRow key={row.rowNumber} className="[content-visibility:auto]">
-                    <TableCell className="tabular-nums">{row.rowNumber}</TableCell>
-                    <TableCell>{row.name || "—"}</TableCell>
-                    <TableCell>{row.email || "—"}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Row" className="tabular-nums">{row.rowNumber}</TableCell>
+                    <TableCell data-label="Name">{row.name || "—"}</TableCell>
+                    <TableCell data-label="Email" className="wrap-anywhere">{row.email || "—"}</TableCell>
+                    <TableCell data-label="Check">
                       {row.errors.length === 0 ? (
                         <Badge variant="secondary">Ready</Badge>
                       ) : (
-                        <ul className="flex min-w-64 list-disc flex-col gap-1 pl-4 text-destructive-text">
+                        <ul className="flex list-disc flex-col gap-1 pl-4 text-destructive-text">
                           {[...new Set(row.errors)].map((error) => (
                             <li key={error}>{error}</li>
                           ))}

@@ -11,7 +11,7 @@ export async function GET(
   if (!session) return new Response("Sign in required.", { status: 401 });
   const { eventId } = await context.params;
   if (!z.string().uuid().safeParse(eventId).success) {
-    return new Response("Invalid Event.", { status: 400 });
+    return new Response("Invalid event.", { status: 400 });
   }
 
   const exported = await exportEventRegistrations(eventId, session.user.id);

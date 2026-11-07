@@ -48,11 +48,11 @@ export async function inviteStaffAction(eventId: string, formData: FormData) {
     const message =
       error instanceof StaffingConflictError
         ? error.message
-        : "The Staff Invitation could not be created.";
+        : "The staff invitation could not be created.";
     redirect(staffPath(validEventId, new URLSearchParams({ error: message })));
   }
 
-  let notice = "Staff Invitation sent.";
+  let notice = "Invitation sent.";
   try {
     const origin = getConfiguredApplicationOrigin();
     await sendStaffInvitationEmail({
@@ -63,7 +63,7 @@ export async function inviteStaffAction(eventId: string, formData: FormData) {
       role: invitation.role,
     });
   } catch {
-    notice = "Staff Invitation saved, but email delivery failed.";
+    notice = "Invitation saved, but the email did not go out. Revoke it and try again.";
   }
   revalidatePath(staffPath(validEventId));
   redirect(staffPath(validEventId, new URLSearchParams({ notice })));
@@ -84,7 +84,7 @@ export async function revokeStaffInvitationAction(
     );
   }
   revalidatePath(staffPath(validEventId));
-  redirect(staffPath(validEventId, new URLSearchParams({ notice: "Staff Invitation revoked." })));
+  redirect(staffPath(validEventId, new URLSearchParams({ notice: "Invitation revoked." })));
 }
 
 export async function removeEventStaffAction(
@@ -103,7 +103,7 @@ export async function removeEventStaffAction(
   }
   revalidatePath(staffPath(validEventId));
   revalidatePath("/events");
-  redirect(staffPath(validEventId, new URLSearchParams({ notice: "Event Staff access removed." })));
+  redirect(staffPath(validEventId, new URLSearchParams({ notice: "Access removed." })));
 }
 
 export async function proposeOwnershipTransferAction(
@@ -116,7 +116,7 @@ export async function proposeOwnershipTransferAction(
   const proposedOwnerUserId = uuidSchema.safeParse(formData.get("proposedOwnerUserId"));
   if (!proposedOwnerUserId.success) {
     redirect(
-      staffPath(validEventId, new URLSearchParams({ error: "Choose an Organizer." })),
+      staffPath(validEventId, new URLSearchParams({ error: "Choose an organizer." })),
     );
   }
   try {
@@ -132,6 +132,6 @@ export async function proposeOwnershipTransferAction(
   }
   revalidatePath(staffPath(validEventId));
   redirect(
-    staffPath(validEventId, new URLSearchParams({ notice: "Ownership Transfer proposed for 24 hours." })),
+    staffPath(validEventId, new URLSearchParams({ notice: "Transfer proposed. They have 24 hours to accept." })),
   );
 }

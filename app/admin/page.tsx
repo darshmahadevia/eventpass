@@ -19,7 +19,7 @@ import {
 } from "./actions";
 
 export const metadata = {
-  title: "Platform Administration — EventPass",
+  title: "Administration",
   description: "Command-only operations surface for abuse handling and support.",
 };
 

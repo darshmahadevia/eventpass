@@ -361,11 +361,17 @@ export function createRegistrationApplicationService({
             capacityOutcome: hasCapacity ? "capacity_hold" : "waitlist",
           })
           .returning({ id: registration.id });
-        if (!created) throw new Error("Could not create the Registration.");
+        if (!created) throw new Error("Could not create the registration.");
 
-        if (fields.length > 0) {
+        // A blank optional question validates to null and `value` is NOT NULL,
+        // so it is skipped rather than stored. Inserting it failed the whole
+        // registration for any guest who left an optional question empty.
+        const answered = fields.filter(
+          (field) => validation.data.answers[field.id] != null,
+        );
+        if (answered.length > 0) {
           await transaction.insert(registrationAnswer).values(
-            fields.map((field) => ({
+            answered.map((field) => ({
               registrationId: created.id,
               fieldId: field.id,
               value: validation.data.answers[field.id],
@@ -374,7 +380,7 @@ export function createRegistrationApplicationService({
           await transaction
             .update(registrationField)
             .set({ responseCount: sql`${registrationField.responseCount} + 1` })
-            .where(inArray(registrationField.id, fields.map(({ id }) => id)));
+            .where(inArray(registrationField.id, answered.map(({ id }) => id)));
         }
 
         const verificationExpiresAt = new Date(submittedAt.getTime() + 15 * 60_000);

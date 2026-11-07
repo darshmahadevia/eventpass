@@ -38,7 +38,7 @@ export async function sendAdmissionOffer({
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   const applicationUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL;
-  if (!apiKey) throw new Error("RESEND_API_KEY is required to send Admission Offers.");
+  if (!apiKey) throw new Error("RESEND_API_KEY is required to send admission offers.");
   if (!applicationUrl) throw new Error("NEXT_PUBLIC_APP_URL is required to create offer links.");
   const claimUrl = new URL(`/offers/${encodeURIComponent(token)}`, applicationUrl);
   const deadline = formatAdmissionOfferDeadline(expiresAt, eventTimeZone);
@@ -102,5 +102,5 @@ export async function sendAdmissionOffer({
       .where(eq(emailDelivery.id, delivery.id));
     if (failureKind === "permanent") break;
   }
-  throw new Error("The Admission Offer email could not be sent.");
+  throw new Error("The admission offer email could not be sent.");
 }

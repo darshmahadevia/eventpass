@@ -44,7 +44,7 @@ export function assertPostCheckInChangeAllowed(
     next.checkInClosesAt < current.checkInClosesAt
   ) {
     throw new PublishedEventChangeError(
-      "After check-in opens, only the Event Owner can extend the Event end or Check-in close.",
+      "After check-in opens, only the event owner can extend the event end or check-in close.",
     );
   }
 }

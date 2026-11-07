@@ -45,14 +45,21 @@ export default async function EditEventPage({
         <h1 className="type-page">Settings</h1>
         <p className="max-w-2xl text-support text-muted-foreground">
           {event.status === "draft"
-            ? "Changes stay private until you publish. The public web address is fixed once you do."
-            : "Significant changes are recorded and emailed to everyone affected. Restrictions tighten once check-in opens."}
+            ? "Changes stay private until you publish."
+            : "Guests are emailed about changes that affect them, like a new time or venue."}
         </p>
       </div>
       <CreateEventForm
         eventId={event.id}
         initialValues={initialValues}
         slugImmutable={Boolean(event.publishedAt)}
+        lock={
+          event.status === "published" && event.checkInOpensAt <= new Date()
+            ? event.role === "owner"
+              ? "extend-only"
+              : "all"
+            : "none"
+        }
       />
     </>
   );

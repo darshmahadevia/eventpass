@@ -35,7 +35,7 @@ export function CancelEventControl({
           <AlertDialogTitle>Cancel {eventName}?</AlertDialogTitle>
           <AlertDialogDescription>
             This immediately invalidates every active ticket and blocks new
-            Registration and admission. Records are preserved, and the event
+            registration and check-in. Records are preserved, and the event
             cannot be restored.
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -53,8 +53,8 @@ export function CancelEventControl({
               placeholder="Explain the cancellation to attendees and staff."
             />
             <FieldDescription>
-              This reason is recorded in Audit and shared with affected
-              Attendees.
+              This reason is kept in the audit log and shared with affected
+              guests.
             </FieldDescription>
           </Field>
           <AlertDialogFooter>

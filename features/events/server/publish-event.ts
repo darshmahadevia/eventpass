@@ -33,7 +33,7 @@ export async function publishEvent(eventId: string, actorUserId: string) {
 
     if (!publishedEvent) {
       throw new EventCannotBePublishedError(
-        "Only an Organizer can publish a Draft Event.",
+        "Only an organizer can publish a draft event.",
       );
     }
 

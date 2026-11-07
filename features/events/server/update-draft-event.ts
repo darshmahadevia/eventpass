@@ -50,13 +50,13 @@ export async function updateDraftEvent(
 
     if (!authorization) {
       throw new DraftEventNotEditableError(
-        "Only an Organizer can edit a Draft Event.",
+        "Only an organizer can edit a draft event.",
       );
     }
 
     if (authorization.publishedAt && authorization.slug !== input.slug) {
       throw new EventSlugImmutableError(
-        "The Event Slug cannot change after first publication.",
+        "The event Slug cannot change after first publication.",
       );
     }
 
@@ -67,7 +67,7 @@ export async function updateDraftEvent(
       .limit(1);
 
     if (slugConflict) {
-      throw new EventSlugUnavailableError("That Event Slug is already in use.");
+      throw new EventSlugUnavailableError("That web address is taken. Try another.");
     }
 
     const usage = await getActiveCapacityUsage(transaction, eventId, new Date());
@@ -96,7 +96,7 @@ export async function updateDraftEvent(
 
     if (!updatedEvent) {
       throw new DraftEventNotEditableError(
-        "The Event is no longer an editable Draft Event.",
+        "The event is no longer an editable draft event.",
       );
     }
   });

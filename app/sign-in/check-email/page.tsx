@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { IconArrowLeft, IconMailCheck } from "@tabler/icons-react";
 
 import { PendingLink } from "@/components/pending-link";
 import { PublicAuthShell } from "@/components/public-auth-shell";
 import { buttonVariants } from "@/components/ui/button";
+
+export const metadata: Metadata = { title: "Check your email" };
 
 export default function CheckEmailPage() {
   return (
@@ -16,8 +19,7 @@ export default function CheckEmailPage() {
             Check your email
           </h1>
           <p className="max-w-sm text-reading text-muted-foreground text-pretty">
-            We sent a secure EventPass sign-in link. Open it on this device to
-            continue to your staff workspace.
+            We sent you a sign-in link. Open it on this device and you are in.
           </p>
         </div>
 

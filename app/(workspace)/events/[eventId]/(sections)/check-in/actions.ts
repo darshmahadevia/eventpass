@@ -80,7 +80,7 @@ export async function resolveCheckInConflictAction(
             error instanceof CheckInConflictError ||
             error instanceof EventSuspendedError
               ? error.message
-              : "The Check-in Conflict could not be resolved.",
+              : "The check-in conflict could not be resolved.",
         }),
       ),
     );
@@ -106,7 +106,7 @@ export async function reverseOrganizerCheckInAction(
   if (!session) {
     return {
       outcome: "error" as const,
-      message: "Sign in again to reverse this Check-in.",
+      message: "Sign in again to reverse this check-in.",
     };
   }
   const parsed = reversalSchema.safeParse({ eventId, checkInId, reason });
@@ -125,7 +125,7 @@ export async function reverseOrganizerCheckInAction(
         error instanceof CheckInCorrectionError ||
         error instanceof EventSuspendedError
           ? error.message
-          : "This Check-in could not be reversed.",
+          : "This check-in could not be reversed.",
     };
   }
   revalidatePath(`/events/${eventId}/check-in`);

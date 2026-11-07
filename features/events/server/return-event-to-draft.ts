@@ -35,7 +35,7 @@ export async function returnEventToDraft(eventId: string, actorUserId: string) {
 
     if (!draftEvent) {
       throw new EventCannotReturnToDraftError(
-        "Only an Organizer can return this Published Event to Draft.",
+        "Only an organizer can return this published event to draft.",
       );
     }
 

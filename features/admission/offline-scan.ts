@@ -53,7 +53,9 @@ export async function admitOffline(
 ): Promise<AdmissionResult> {
   const snapshot = await store.getCachedSnapshot();
   if (!snapshot || snapshot.event.id !== values.eventId) {
-    return resultFor("unauthorized");
+    // Nothing is wrong with this person's access. The phone was never given the
+    // list, and a "no access" screen sent them after the wrong problem.
+    return resultFor("no_guest_list");
   }
 
   const timing = await store.captureAttemptTiming(values.eventId);

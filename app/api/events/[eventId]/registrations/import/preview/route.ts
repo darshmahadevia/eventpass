@@ -14,7 +14,7 @@ export async function POST(
 
   const { eventId } = await context.params;
   if (!z.string().uuid().safeParse(eventId).success) {
-    return Response.json({ message: "Invalid Event." }, { status: 400 });
+    return Response.json({ message: "Invalid event." }, { status: 400 });
   }
   try {
     const formData = await readRequestFormData(request, MAX_IMPORT_BYTES + 64 * 1024);

@@ -30,8 +30,7 @@ export default async function RegistrationFormPage({
           Registration form
         </h1>
         <p className="max-w-2xl text-support text-muted-foreground">
-          Name and email are always collected. Add only the event-specific
-          questions attendees need to answer.
+          What guests answer when they register.
         </p>
       </div>
 

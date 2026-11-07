@@ -57,7 +57,7 @@ export const cancelPublishedEventInputSchema = z.object({
   reason: z
     .string()
     .trim()
-    .min(1, "Explain why this Event is being canceled.")
+    .min(1, "Explain why this event is being canceled.")
     .max(1_000, "Keep the cancellation reason under 1,000 characters."),
 });
 
@@ -208,12 +208,12 @@ export function createPublishedEventApplicationService({
         current.status !== "published"
       ) {
         throw new PublishedEventAuthorizationError(
-          "Only an Organizer can change a Published Event.",
+          "Only an organizer can change a published event.",
         );
       }
       if (input.slug !== current.slug) {
         throw new PublishedEventChangeError(
-          "The Event Slug cannot change after publication.",
+          "The event Slug cannot change after publication.",
         );
       }
 
@@ -339,14 +339,14 @@ export function createPublishedEventApplicationService({
         .limit(1);
       if (!current || current.role !== "owner") {
         throw new PublishedEventAuthorizationError(
-          "Only the Event Owner can cancel this Event.",
+          "Only the event owner can cancel this event.",
         );
       }
       if (current.status !== "published") {
         throw new EventCancellationError(
           current.status === "canceled"
-            ? "A canceled Event cannot be restored or canceled again."
-            : "Only a Published Event can be canceled.",
+            ? "A canceled event cannot be restored or canceled again."
+            : "Only a published event can be canceled.",
         );
       }
 

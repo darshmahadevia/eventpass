@@ -20,7 +20,7 @@ export async function sendStaffInvitationEmail(input: {
   role: InviteableStaffRole;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) throw new Error("RESEND_API_KEY is required to send Staff Invitations.");
+  if (!apiKey) throw new Error("RESEND_API_KEY is required to send staff invitations.");
 
   const [delivery] = await db
     .insert(emailDelivery)
@@ -60,7 +60,7 @@ export async function sendStaffInvitationEmail(input: {
         outcome: "transient_failure",
       })
       .where(eq(emailDelivery.id, delivery.id));
-    throw new Error("The Staff Invitation was saved, but its email was not accepted.");
+    throw new Error("The staff invitation was saved, but its email was not accepted.");
   }
 
   if (response.error) {
@@ -73,7 +73,7 @@ export async function sendStaffInvitationEmail(input: {
         outcome: transient ? "transient_failure" : "permanent_failure",
       })
       .where(eq(emailDelivery.id, delivery.id));
-    throw new Error("The Staff Invitation was saved, but its email was not accepted.");
+    throw new Error("The staff invitation was saved, but its email was not accepted.");
   }
 
   await db

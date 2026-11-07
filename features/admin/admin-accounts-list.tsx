@@ -59,7 +59,7 @@ export function AdminAccountsList({
       />
 
       <div className="overflow-hidden panel">
-        <Table>
+        <Table stack>
           <TableHeader className="bg-muted/50 text-muted-foreground">
             <TableRow>
               <TableHead>Account</TableHead>
@@ -82,7 +82,7 @@ export function AdminAccountsList({
                     <div className="font-medium text-foreground">{acc.name}</div>
                     <div className="text-xs text-muted-foreground">{acc.email}</div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Role">
                     {acc.isPlatformAdmin ? (
                       <Badge variant="outline" className="gap-1">
                         <IconShield aria-hidden="true" /> Administrator
@@ -91,7 +91,7 @@ export function AdminAccountsList({
                       <span className="text-sm text-muted-foreground">Staff</span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Status">
                     {acc.suspended ? (
                       <Badge variant="destructive" className="gap-1">
                         <IconUserOff aria-hidden="true" /> Suspended

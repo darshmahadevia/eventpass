@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 import {
   cancelRegistration,
@@ -47,7 +46,7 @@ export async function updateRegistrationAction(
     const result = await updateRegistration(token, values);
     if (result.outcome === "updated") {
       refreshManagementPage(token);
-      return { status: "success", message: "Your Registration was updated." };
+      return { status: "success", message: "Your registration was updated." };
     }
     if (result.outcome === "invalid_answers") {
       return {
@@ -61,16 +60,16 @@ export async function updateRegistrationAction(
       status: "error",
       message:
         result.outcome === "closed"
-          ? "This Registration can no longer be edited."
+          ? "This registration can no longer be edited."
           : result.outcome === "unavailable"
-            ? "This Event is currently unavailable. Registration changes are paused."
+            ? "This event is currently unavailable. Registration changes are paused."
             : "This management link is no longer valid.",
       values,
     };
   } catch {
     return {
       status: "error",
-      message: "Your Registration could not be updated. Try again.",
+      message: "Your registration could not be updated. Try again.",
       values,
     };
   }
@@ -85,21 +84,19 @@ export async function resendTicketAction(
   try {
     result = await resendTicket(token);
   } catch {
-    return { status: "error", message: "The Ticket email could not be sent. Try again." };
+    return { status: "error", message: "The ticket email could not be sent. Try again." };
   }
 
   if (result.outcome === "sent") {
-    if (!result.managementToken) {
-      return { status: "error", message: "The Ticket email could not be sent. Try again." };
-    }
-    const suffix = result.deliveryStatus === "failed" ? "?delivery=failed" : "";
-    redirect(`/tickets/${encodeURIComponent(result.managementToken)}${suffix}`);
+    return result.deliveryStatus === "failed"
+      ? { status: "error", message: "The ticket email could not be sent. Try again." }
+      : { status: "success", message: "Your ticket is on its way. This page keeps working too." };
   }
 
   if (result.outcome === "throttled") {
     return { status: "error", message: TICKET_EMAIL_LIMIT_MESSAGE };
   }
-  return { status: "error", message: "This Ticket can no longer be resent." };
+  return { status: "error", message: "This ticket can no longer be resent." };
 }
 
 export async function replaceTicketAction(
@@ -115,8 +112,8 @@ export async function replaceTicketAction(
         status: result.deliveryStatus === "failed" ? "error" : "success",
         message:
           result.deliveryStatus === "failed"
-            ? "The old Ticket was invalidated and the replacement is shown here, but its email could not be sent."
-            : "The old Ticket was invalidated and a replacement was issued and emailed.",
+            ? "The old ticket was invalidated and the replacement is shown here, but its email could not be sent."
+            : "The old ticket was invalidated and a replacement was issued and emailed.",
       };
     }
     return {
@@ -125,15 +122,15 @@ export async function replaceTicketAction(
         result.outcome === "closed"
           ? "Tickets cannot be replaced after check-in opens."
           : result.outcome === "checked_in"
-            ? "This Ticket has already been checked in and cannot be replaced."
+            ? "This ticket has already been checked in and cannot be replaced."
             : result.outcome === "throttled"
               ? TICKET_EMAIL_LIMIT_MESSAGE
               : result.outcome === "unavailable"
-                ? "This Event is currently unavailable. Ticket changes are paused."
-                : "This Ticket can no longer be replaced.",
+                ? "This event is currently unavailable. Ticket changes are paused."
+                : "This ticket can no longer be replaced.",
     };
   } catch {
-    return { status: "error", message: "The Ticket could not be replaced. Try again." };
+    return { status: "error", message: "The ticket could not be replaced. Try again." };
   }
 }
 
@@ -148,7 +145,7 @@ export async function cancelRegistrationAction(
       refreshManagementPage(token);
       return {
         status: "success",
-        message: "Your Registration was canceled and this Ticket is no longer valid.",
+        message: "Your registration was canceled and this ticket is no longer valid.",
       };
     }
     return {
@@ -157,12 +154,12 @@ export async function cancelRegistrationAction(
         result.outcome === "closed"
           ? "Registrations cannot be canceled after check-in opens."
           : result.outcome === "checked_in"
-            ? "This Registration has already been checked in and cannot be canceled."
+            ? "This registration has already been checked in and cannot be canceled."
             : result.outcome === "unavailable"
-              ? "This Event is currently unavailable. Registration changes are paused."
-              : "This Registration can no longer be canceled.",
+              ? "This event is currently unavailable. Registration changes are paused."
+              : "This registration can no longer be canceled.",
     };
   } catch {
-    return { status: "error", message: "The Registration could not be canceled. Try again." };
+    return { status: "error", message: "The registration could not be canceled. Try again." };
   }
 }

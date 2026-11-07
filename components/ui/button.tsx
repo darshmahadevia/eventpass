@@ -36,9 +36,11 @@ const buttonVariants = cva(
         xs: "h-6 gap-1 px-2.5 text-xs has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-9 gap-1 px-3 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
         lg: "h-12 gap-2 px-5 text-base has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4",
-        icon: "size-10",
-        "icon-xs": "size-6 [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm": "size-9",
+        // Below `md` every icon button is a 44px touch target; the pointer sizes
+        // only apply where there is a pointer.
+        icon: "size-11 md:size-10",
+        "icon-xs": "size-11 md:size-6 md:[&_svg:not([class*='size-'])]:size-3",
+        "icon-sm": "size-11 md:size-9",
         "icon-lg": "size-12",
       },
     },

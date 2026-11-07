@@ -155,7 +155,7 @@ export function eventScheduleInstants(input: {
     !checkInOpensAt ||
     !checkInClosesAt
   ) {
-    throw new Error("A local time does not exist in the Event Time Zone.");
+    throw new Error("A local time does not exist in the event time zone.");
   }
 
   return {

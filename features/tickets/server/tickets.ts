@@ -20,6 +20,29 @@ export const verifyRegistration = ticketApplication.verifyRegistration;
 export const getManagementView = ticketApplication.getManagementView;
 export const updateRegistration = ticketApplication.updateRegistration;
 export const resendTicket = ticketApplication.resendTicket;
+export const resendTicketForRegistration =
+  ticketApplication.resendTicketForRegistration;
+
+export async function resendGuestTicket(
+  eventId: string,
+  registrationId: string,
+  actorUserId: string,
+) {
+  const organizerEvent = await getOrganizerEvent(eventId, actorUserId);
+  if (!organizerEvent) return { outcome: "invalid" } as const;
+  return ticketApplication.resendTicketForRegistration(registrationId, eventId);
+}
+
+export async function cancelGuestRegistration(
+  eventId: string,
+  registrationId: string,
+  actorUserId: string,
+) {
+  const organizerEvent = await getOrganizerEvent(eventId, actorUserId);
+  if (!organizerEvent) return { outcome: "invalid" } as const;
+  return ticketApplication.cancelRegistrationById(registrationId, eventId);
+}
+
 export const replaceTicket = ticketApplication.replaceTicket;
 export const cancelRegistration = ticketApplication.cancelRegistration;
 export const claimAdmissionOffer = ticketApplication.claimAdmissionOffer;

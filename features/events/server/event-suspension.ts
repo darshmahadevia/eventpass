@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { event } from "@/lib/db/schema";
 
 export class EventSuspendedError extends Error {
-  constructor(message = "This Event is currently unavailable.") {
+  constructor(message = "This event is currently unavailable.") {
     super(message);
     this.name = "EventSuspendedError";
   }

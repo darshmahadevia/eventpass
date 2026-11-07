@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { notFound, redirect } from "next/navigation";
 
+import { getScannerEvent } from "@/features/admission/server/scanner";
 import { getOrganizerEvent } from "@/features/events/server/get-event";
 import { EventSuspendedError } from "@/features/events/server/event-suspension";
 import { reconcileOrganizerWaitlist } from "@/features/tickets/server/tickets";
@@ -47,7 +48,13 @@ export default async function EventWorkspaceSectionsLayout({
   if (!staffSession) redirect("/sign-in");
 
   const event = await getOrganizerEvent(eventId, staffSession.user.id);
-  if (!event) notFound();
+  if (!event) {
+    // A volunteer has no workspace, only a door. A link to the event sends them
+    // there rather than to a 404 that reads as if the event had vanished.
+    const scannerEvent = await getScannerEvent(eventId, staffSession.user.id);
+    if (scannerEvent) redirect(`/scanner/${eventId}`);
+    notFound();
+  }
 
   // Expiry-on-read (ADR 0005) has to run on organizer traffic, not only on
   // attendee mutations. The roster Expired filter is a status check, so a
@@ -66,6 +73,11 @@ export default async function EventWorkspaceSectionsLayout({
   const isDraft = event.status === "draft";
   const isCanceled = event.status === "canceled";
   const doorsOpen = isDoorOpen(event);
+  const now = new Date();
+  const ended = event.status === "published" && event.endsAt < now;
+  // Past this point there is nothing left to scan. A phone with scans still
+  // waiting to sync reaches the scanner from the Check-in page.
+  const doorClosed = event.checkInClosesAt < now;
 
   return (
     <div className="flex w-full flex-1 flex-col lg:flex-row">
@@ -80,7 +92,9 @@ export default async function EventWorkspaceSectionsLayout({
               ? "Canceled"
               : doorsOpen
                 ? "Doors open"
-                : "Published"
+                : ended
+                  ? "Ended"
+                  : "Published"
         }
         statusVariant={
           isDraft
@@ -89,13 +103,15 @@ export default async function EventWorkspaceSectionsLayout({
               ? "destructive"
               : doorsOpen
                 ? "success"
-                : "default"
+                : ended
+                  ? "secondary"
+                  : "default"
         }
-        showScanner={event.status === "published"}
+        showScanner={event.status === "published" && !doorClosed}
         showPublicPage={!isDraft}
       />
 
-      <main className="mx-auto flex w-full max-w-6xl min-w-0 flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
+      <main id="main" tabIndex={-1} className="mx-auto flex w-full max-w-6xl min-w-0 flex-1 flex-col gap-6 px-4 pt-6 pb-28 sm:gap-8 sm:px-6 sm:pt-10 lg:px-10 lg:pb-10">
         {event.suspended ? (
           <Alert variant="warning">
             <AlertTitle>Event currently unavailable</AlertTitle>

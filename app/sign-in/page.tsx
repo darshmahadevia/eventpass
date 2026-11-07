@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
 import { IconAlertCircle } from "@tabler/icons-react";
 
 import { PublicAuthShell } from "@/components/public-auth-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SignInForm } from "@/features/staff-identity/sign-in-form";
+import { inspectStaffInvitation } from "@/features/staffing/server/staffing-application";
+
+export const metadata: Metadata = { title: "Sign in" };
 
 type SignInPageProps = {
   searchParams: Promise<{
@@ -27,6 +31,12 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
     ? error.includes("rate-limited")
     : error === "rate-limited";
 
+  // Arriving from a staff invitation, the address is already known.
+  const invitationToken = /^\/staff-invitations\/([^/?#]+)$/.exec(safeCallback)?.[1];
+  const invitedEmail = invitationToken
+    ? ((await inspectStaffInvitation(invitationToken))?.normalizedEmail ?? "")
+    : "";
+
   return (
     <PublicAuthShell>
       <div className="flex flex-col gap-8">
@@ -35,8 +45,8 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             Sign in to EventPass
           </h1>
           <p className="max-w-sm text-reading text-muted-foreground text-pretty">
-            Organizing your first event? Use your email to get started.
-            Returning staff can sign in here too. No password needed.
+            New here? Enter your email and you are in. There is no password,
+            whether it is your first event or your fiftieth.
           </p>
         </div>
 
@@ -61,12 +71,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           </Alert>
         ) : null}
 
-        <SignInForm callbackURL={safeCallback} />
-
-        <p className="text-center text-xs text-balance text-muted-foreground">
-          By continuing, you confirm that you are authorized to access an
-          EventPass staff workspace.
-        </p>
+        <SignInForm callbackURL={safeCallback} initialEmail={invitedEmail} />
       </div>
     </PublicAuthShell>
   );

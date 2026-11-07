@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { IconAlertTriangle, IconClock, IconMailCheck } from "@tabler/icons-react";
 
@@ -5,8 +6,14 @@ import { EventPassMark } from "@/components/eventpass-mark";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { PendingLink } from "@/components/pending-link";
+import { SentToAddress } from "@/features/registration/sent-to-address";
 import { getPublishedEvent } from "@/features/events/server/get-event";
 import { cn } from "@/lib/utils";
+
+export const metadata: Metadata = {
+  title: "Check your email",
+  robots: { index: false, follow: false },
+};
 
 export default async function RegistrationCheckEmailPage({
   params,
@@ -46,10 +53,11 @@ export default async function RegistrationCheckEmailPage({
           <h1 className="mt-2 type-answer">
             Check your email
           </h1>
+          <SentToAddress />
           <p className="mt-4 max-w-xl text-reading text-muted-foreground">
             {isNeutral
-              ? "If your registration can go ahead, we’ll send a one-time link shortly."
-              : "Open the link we sent to confirm your email and finish registering."}
+              ? "If that address can register or already has a ticket, an email is on its way."
+              : "Open the link we sent to confirm your email and get your ticket."}
           </p>
 
           {isNeutral ? (
@@ -57,8 +65,8 @@ export default async function RegistrationCheckEmailPage({
               <IconClock aria-hidden="true" />
               <AlertTitle>Check your inbox</AlertTitle>
               <AlertDescription>
-                If you registered, the next steps will be in the
-                email. If you did not, you can ignore this message.
+                Next steps are in the email. Check your spam folder if nothing
+                arrives in a minute.
               </AlertDescription>
             </Alert>
           ) : (
@@ -71,8 +79,8 @@ export default async function RegistrationCheckEmailPage({
               </AlertTitle>
               <AlertDescription>
                 {hasCapacityHold
-                  ? "Verify before the link expires to claim this place. Your registration is not confirmed yet."
-                  : "The event is full. Verify your email to join the waitlist; your place in line starts once you do."}
+                  ? "Open the link before then to keep it. You are not confirmed until you do."
+                  : "The event is full. Confirm your email to join the waitlist. Your place in line starts when you do."}
               </AlertDescription>
             </Alert>
           )}
@@ -80,20 +88,20 @@ export default async function RegistrationCheckEmailPage({
           {deliveryFailed ? (
             <Alert variant="destructive" className="mt-4">
               <IconAlertTriangle aria-hidden="true" />
-              <AlertTitle>Email delivery was not accepted</AlertTitle>
+              <AlertTitle>We could not send your email</AlertTitle>
               <AlertDescription>
-                Your unconfirmed registration was saved, but the provider did not
-                accept the email. Contact the organizer.
+                Your details are saved, but the email did not go out. Go back
+                to the event and enter your email again in a few minutes.
               </AlertDescription>
             </Alert>
           ) : null}
 
           <PendingLink
             href={`/e/${slug}`}
-            className={cn(buttonVariants({ variant: "outline" }), "mt-8")}
+            className={cn(buttonVariants({ variant: "outline" }), "mt-8 h-auto min-h-10 py-2 whitespace-normal")}
             pendingLabel="Opening event"
           >
-            Return to event
+            Wrong email, or nothing arrived? Go back
           </PendingLink>
         </section>
       </main>

@@ -26,6 +26,7 @@ import {
   registrationField,
   registrationFieldChoice,
   ticket,
+  emailDelivery,
 } from "@/lib/db/schema";
 import { escapeLikePattern } from "@/lib/like-pattern";
 import type { RosterFilter } from "@/features/registration/roster-filters";
@@ -242,6 +243,13 @@ export async function getEventRoster({
           eq(registration.status, "confirmed"),
           sql`not ${hasActiveCheckInSql}`,
         );
+      case "email_failed":
+        return sql`exists (
+          select 1 from ${emailDelivery}
+          where ${emailDelivery.eventId} = ${eventId}
+            and ${emailDelivery.recipient} = ${registration.email}
+            and ${emailDelivery.outcome} = 'permanent_failure'
+        )`;
       default:
         return eq(registration.status, activeFilter);
     }
@@ -253,6 +261,12 @@ export async function getEventRoster({
     ? or(
         sql`${registration.attendeeName} ilike ${likePattern} escape '\\'`,
         sql`${registration.email} ilike ${likePattern} escape '\\'`,
+        // Codes are stored without the hyphen people read aloud.
+        sql`exists (
+          select 1 from ${ticket}
+          where ${ticket.registrationId} = ${registration.id}
+            and ${ticket.code} ilike ${`%${escapeLikePattern(trimmedQuery.replaceAll("-", ""))}%`} escape '\\'
+        )`,
       )
     : undefined;
 

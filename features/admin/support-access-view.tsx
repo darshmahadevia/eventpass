@@ -200,7 +200,7 @@ export function SupportAccessView({
           />
 
           <div className="overflow-hidden panel">
-            <Table>
+            <Table stack>
               <TableHeader className="bg-muted/50 text-muted-foreground">
                 <TableRow>
                   <TableHead scope="col">Guest</TableHead>
@@ -232,12 +232,12 @@ export function SupportAccessView({
                           {record.attendeeEmail}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Status">
                         <Badge variant="outline" className="capitalize">
                           {record.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Ticket">
                         {record.ticketCode ? (
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="font-mono tracking-code">
@@ -251,7 +251,7 @@ export function SupportAccessView({
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell data-label="Registered" className="text-muted-foreground">
                         <time dateTime={new Date(record.createdAt).toISOString()}>
                           {formatDateTime(record.createdAt)}
                         </time>

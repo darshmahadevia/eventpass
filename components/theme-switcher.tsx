@@ -49,24 +49,30 @@ const OPTIONS = [
   { mode: "dark", icon: IconMoon, label: "Dark theme" },
 ] as const;
 
+// Writes the preference and hands off. The root layout script owns the class,
+// the `theme-color` meta tags and the OS change listener.
+function applyTheme(mode: ThemeMode) {
+  if (mode === "system") {
+    localStorage.removeItem(STORAGE_KEY);
+  } else {
+    localStorage.setItem(STORAGE_KEY, mode);
+  }
+
+  window.__eventpassTheme?.();
+  for (const listener of listeners) listener();
+}
+
+/** The same store for the account menu, which offers theme as radio items. */
+export function useThemeMode() {
+  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  return { theme, setTheme: applyTheme, options: OPTIONS };
+}
+
 export function ThemeSwitcher() {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const activeOption =
     OPTIONS.find((option) => option.mode === theme) ?? OPTIONS[1];
   const ActiveIcon = activeOption.icon;
-
-  // Writes the preference and hands off. The root layout script owns the class,
-  // the `theme-color` meta tags and the OS change listener.
-  function applyTheme(mode: ThemeMode) {
-    if (mode === "system") {
-      localStorage.removeItem(STORAGE_KEY);
-    } else {
-      localStorage.setItem(STORAGE_KEY, mode);
-    }
-
-    window.__eventpassTheme?.();
-    for (const listener of listeners) listener();
-  }
 
   return (
     <Select

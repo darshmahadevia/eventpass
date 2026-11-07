@@ -26,6 +26,7 @@ type LiveMetricsDashboardProps = {
   eventId: string;
   eventSlug: string;
   initialMetrics: LiveEventMetricsResult;
+  state: "live" | "ended" | "canceled";
 };
 
 type Tone = "success" | "warning" | "destructive" | "provisional" | "neutral";
@@ -177,7 +178,7 @@ function Headline({
         />
       </div>
       <p className="text-sm text-muted-foreground">
-        {of > 0 ? caption : "No confirmed registrations yet."}
+        {of > 0 ? caption : "No confirmed guests."}
       </p>
     </div>
   );
@@ -187,6 +188,7 @@ export function LiveMetricsDashboard({
   eventId,
   eventSlug,
   initialMetrics,
+  state,
 }: LiveMetricsDashboardProps) {
   const [metrics, setMetrics] =
     useState<LiveEventMetricsResult>(initialMetrics);
@@ -356,20 +358,26 @@ export function LiveMetricsDashboard({
       href: `/events/${eventId}/check-in`,
     },
     {
-      label: "Tickets that never arrived",
+      label: "Emails that failed",
       count: deliveryOutcomes.permanentFailure,
       tone: "destructive",
-      href: `/events/${eventId}/registrations`,
+      href: `/events/${eventId}/registrations?status=email_failed`,
     },
   ];
   const attention = attentionCandidates.filter((item) => item.count > 0);
 
   const maxHourly = Math.max(...checkInsOverTime.map((p) => p.count), 0);
+  // A brand-new event has nothing to chart. Four panels of zeros told an
+  // organizer nothing and buried the one thing to do: share the link.
+  const hasDoorActivity =
+    scanAttemptStats.total > 0 || checkInsOverTime.length > 0;
+  const hasActivity = hasDoorActivity || deliveryOutcomes.total > 0;
 
   return (
     <div className="flex flex-col gap-6">
+      {state === "live" ? (
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="flex items-center gap-2.5 text-sm text-muted-foreground">
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <span
             aria-hidden="true"
             className={cn(
@@ -386,7 +394,7 @@ export function LiveMetricsDashboard({
             {refreshFailed
               ? "Reconnecting"
               : isPolling
-                ? `Live, updates every ${pollingIntervalMs / 1000} seconds`
+                ? `Live, updates every ${pollingIntervalMs / 1000} seconds.`
                 : "Paused while this tab is hidden"}
           </span>
           <time
@@ -394,22 +402,18 @@ export function LiveMetricsDashboard({
             suppressHydrationWarning
             className="hidden tabular-nums sm:inline"
           >
-            Last update {lastRefreshedAt.toLocaleTimeString()}
+            Last updated {lastRefreshedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
           </time>
         </p>
 
-        {checkInConflictStats.unresolved > 0 ? (
-          <PendingLink
-            href={`/events/${eventId}/check-in`}
-            className={buttonVariants({ variant: "destructive" })}
-            pendingLabel="Opening conflicts"
-          >
-            <IconAlertTriangle data-icon="inline-start" />
-            Resolve {checkInConflictStats.unresolved}{" "}
-            {checkInConflictStats.unresolved > 1 ? "conflicts" : "conflict"}
-          </PendingLink>
-        ) : null}
       </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          {state === "canceled"
+            ? "Final counts from before this event was canceled."
+            : "This event has ended. These are the final counts."}
+        </p>
+      )}
 
       {refreshFailed ? (
         <Alert variant="warning">
@@ -422,7 +426,7 @@ export function LiveMetricsDashboard({
         </Alert>
       ) : null}
 
-      {overview.confirmedRegistrations === 0 ? (
+      {overview.confirmedRegistrations === 0 && state === "live" ? (
         <Empty className="panel p-6 sm:p-8">
           <EmptyHeader>
             <EmptyTitle>Welcome your first confirmed guest</EmptyTitle>
@@ -532,7 +536,7 @@ export function LiveMetricsDashboard({
                   All clear
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  No conflicts, and every ticket email got through.
+                  No conflicts, and no emails have failed.
                 </p>
               </div>
             ) : (
@@ -557,6 +561,7 @@ export function LiveMetricsDashboard({
         </div>
       </section>
 
+      {hasDoorActivity ? (
       <section
         aria-labelledby="arrivals-heading"
         className="panel flex flex-col gap-4 p-5 sm:p-6"
@@ -589,7 +594,7 @@ export function LiveMetricsDashboard({
             the wrong cells, so the count was announced as the hour. Reading
             order belongs to the markup, stacking order to `order-*`.
           */
-          <table className="w-full" role="table">
+          <table className="mb-6 w-full" role="table">
             <caption className="sr-only">
               Arrivals per hour, in the event time zone
             </caption>
@@ -605,7 +610,7 @@ export function LiveMetricsDashboard({
             </thead>
             <tbody
               role="rowgroup"
-              className="flex h-52 items-end gap-3 pt-4"
+              className="flex h-44 items-end gap-3 border-b pt-4 sm:h-52"
             >
               {checkInsOverTime.map((point) => (
                 <tr
@@ -616,7 +621,7 @@ export function LiveMetricsDashboard({
                   <th
                     scope="row"
                     role="rowheader"
-                    className="order-3 w-full truncate text-center text-xs font-normal text-muted-foreground"
+                    className="order-3 -mb-6 w-full truncate text-center text-xs font-normal text-muted-foreground"
                   >
                     {point.label}
                   </th>
@@ -628,7 +633,7 @@ export function LiveMetricsDashboard({
                   </td>
                   <td
                     aria-hidden="true"
-                    className="order-2 w-full max-w-20 rounded-md bg-foreground"
+                    className="order-2 w-full max-w-14 rounded-t-sm bg-foreground/85"
                     style={{
                       height: `${maxHourly > 0 ? Math.max(8, Math.round((point.count / maxHourly) * 100)) : 0}%`,
                     }}
@@ -643,7 +648,9 @@ export function LiveMetricsDashboard({
           </p>
         )}
       </section>
+      ) : null}
 
+      {hasActivity ? (
       <div className="grid gap-6 lg:grid-cols-2">
         <section
           aria-labelledby="scan-outcomes-heading"
@@ -655,7 +662,7 @@ export function LiveMetricsDashboard({
             </h2>
             <PendingLink
               href={`/events/${eventId}/audit`}
-              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline"
+              className="inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline md:min-h-6"
               pendingLabel="Opening"
             >
               Audit log
@@ -717,20 +724,20 @@ export function LiveMetricsDashboard({
         >
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="delivery-heading" className="text-lg font-headline">
-              Ticket delivery
+              Email delivery
             </h2>
             <PendingLink
               href={`/events/${eventId}/registrations`}
-              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline"
+              className="inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline md:min-h-6"
               pendingLabel="Opening"
             >
-              Registrations
+              Guests
               <IconArrowRight aria-hidden="true" className="size-3.5" />
             </PendingLink>
           </div>
           {deliveryOutcomes.total === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No ticket emails yet. They go out when guests confirm or when you
+              No emails yet. Tickets go out when guests confirm or when you
               finish a CSV import.
             </p>
           ) : (
@@ -769,17 +776,19 @@ export function LiveMetricsDashboard({
           )}
         </section>
       </div>
+      ) : null}
 
       {/* Only when there is something to report. A line reading "0 resolved
           automatically, 0 by an organizer, of 0 total" floated unanchored under
           two panels and told an organizer nothing at all. */}
       {checkInConflictStats.total > 0 ? (
         <p className="text-sm text-muted-foreground">
-          Of {checkInConflictStats.total.toLocaleString()} conflicts,{" "}
-          {checkInConflictStats.resolvedAuto.toLocaleString()} were resolved
-          automatically by timestamp and{" "}
-          {checkInConflictStats.resolvedManual.toLocaleString()} by an
-          organizer.
+          {checkInConflictStats.total.toLocaleString()}{" "}
+          {checkInConflictStats.total === 1 ? "conflict" : "conflicts"} so far:{" "}
+          {checkInConflictStats.resolvedAuto.toLocaleString()} settled
+          automatically, {checkInConflictStats.resolvedManual.toLocaleString()}{" "}
+          by an organizer, {checkInConflictStats.unresolved.toLocaleString()}{" "}
+          still open.
         </p>
       ) : null}
     </div>

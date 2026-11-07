@@ -46,7 +46,7 @@ export async function deleteDraftEvent(eventId: string, actorUserId: string) {
 
     if (!ownedDraft) {
       throw new DraftEventCannotBeDeletedError(
-        "Only the Event Owner can delete a Draft Event.",
+        "Only the event owner can delete a draft event.",
       );
     }
 
@@ -58,7 +58,7 @@ export async function deleteDraftEvent(eventId: string, actorUserId: string) {
       .from(scanAttempt).where(eq(scanAttempt.eventId, eventId)).limit(1);
     if (recordedScan) {
       throw new DraftEventCannotBeDeletedError(
-        "Draft Events with scan history cannot be deleted.",
+        "Draft events with scan history cannot be deleted.",
       );
     }
     await transaction.delete(ticket).where(eq(ticket.eventId, eventId));

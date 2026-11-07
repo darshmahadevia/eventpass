@@ -46,7 +46,7 @@ export async function saveRegistrationFormAction(
 
     return {
       status: "error",
-      message: "The Registration form could not be saved. Review each field and try again.",
+      message: "The registration form could not be saved. Review each field and try again.",
     };
   }
 
