@@ -52,7 +52,7 @@ drizzle/                    migrations
 
 ## Run it locally
 
-Requires Node 22+ and Docker.
+Requires Node 24 and Docker (Node 22 also works locally).
 
 ```bash
 npm install
