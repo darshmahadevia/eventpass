@@ -34,7 +34,7 @@ export default async function EventsPage() {
     .orderBy(desc(events.startsAt));
 
   return (
-    <div className="grid gap-10">
+    <div className="grid grid-cols-1 gap-10">
       <section>
         <div className="mb-6 flex items-center justify-between gap-4">
           <h1 className="text-2xl font-bold tracking-tight">Your events</h1>
@@ -48,7 +48,7 @@ export default async function EventsPage() {
             <p className="mt-1 text-sm text-muted">Create your first event to get a registration link.</p>
           </Card>
         ) : (
-          <div className="grid gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {owned.map(({ event, registered }) => (
               <Link key={event.id} href={`/events/${event.id}`}>
                 <Card className="flex flex-wrap items-center justify-between gap-4 p-5 transition hover:border-accent">
@@ -75,7 +75,7 @@ export default async function EventsPage() {
       {staffed.length > 0 && (
         <section>
           <h2 className="mb-4 text-lg font-bold">Door team</h2>
-          <div className="grid gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {staffed.map((event) => (
               <Card key={event.id} className="flex flex-wrap items-center justify-between gap-4 p-5">
                 <div>

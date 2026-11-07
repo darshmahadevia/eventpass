@@ -43,7 +43,7 @@ export default async function PublicEventPage({ params }: PageProps<"/e/[slug]">
           <Logo />
         </Link>
       </header>
-      <main className="mx-auto grid max-w-5xl gap-8 px-4 pb-16 sm:px-6 lg:grid-cols-[1fr_24rem]">
+      <main className="mx-auto grid max-w-5xl grid-cols-1 gap-8 px-4 pb-16 sm:px-6 lg:grid-cols-[1fr_24rem]">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">{event.title}</h1>
           <ul className="mt-6 grid gap-3 text-sm">

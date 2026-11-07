@@ -43,7 +43,7 @@ export default function Scanner({ eventId, title, timeZone, backHref }: Props) {
   }, [door.guests, query]);
 
   return (
-    <div className="mx-auto grid min-h-dvh max-w-lg content-start gap-4 px-4 py-4">
+    <div className="mx-auto grid min-h-dvh max-w-lg grid-cols-1 content-start gap-4 px-4 py-4">
       <header className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <Link href={backHref} className="text-sm text-muted hover:text-fg">

@@ -19,7 +19,7 @@ export default async function SettingsPage({ params }: PageProps<"/events/[event
   });
 
   return (
-    <div className="mx-auto grid max-w-2xl gap-10">
+    <div className="mx-auto grid max-w-2xl grid-cols-1 gap-10">
       <Section title="Event details">
         <Card className="p-6">
           <EventForm

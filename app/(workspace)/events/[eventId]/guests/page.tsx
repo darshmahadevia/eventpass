@@ -50,7 +50,7 @@ export default async function GuestsPage({ params, searchParams }: PageProps<"/e
   const canAct = event.status !== "cancelled";
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       {event.status === "published" && <AutoRefresh seconds={20} />}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -112,7 +112,7 @@ export default async function GuestsPage({ params, searchParams }: PageProps<"/e
                     </p>
                     {answers.length > 0 && (
                       <p className="mt-1 text-xs text-muted">
-                        {answers.map(([label, value]) => `${label}: ${value}`).join(" · ")}
+                        {answers.map(([label, value]) => `${label}${/[?:]$/.test(label ?? "") ? "" : ":"} ${value}`).join(" · ")}
                       </p>
                     )}
                   </div>

@@ -27,7 +27,7 @@ export default async function EventOverviewPage({ params }: PageProps<"/events/[
   const live = event.status === "published" && event.endsAt > new Date();
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       {live && <AutoRefresh />}
 
       {event.status === "draft" && (
@@ -64,7 +64,7 @@ export default async function EventOverviewPage({ params }: PageProps<"/events/[
         </div>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
         <Card className="p-5">
           <h2 className="font-semibold">Registration link</h2>
           <p className="mt-1 text-sm text-muted">
