@@ -229,7 +229,7 @@ export function ScanOutcome({
         // outcome surface is deliberately light in both themes, so any control
         // rendered into `actions` has to be light too — otherwise dark mode
         // drops a near-black button onto a mint background.
-        "poster-surface signal-surface flex h-full w-full flex-col items-center justify-center gap-4 px-6 py-10 text-center",
+        "poster-surface signal-surface @container flex h-full w-full flex-col items-center justify-center gap-4 px-6 py-10 text-center",
         tone.surface,
         tone.text,
         className,

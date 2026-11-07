@@ -542,8 +542,10 @@
   }
 
   /* A door decision. Read at arm's length with a queue waiting. */
+  /* Sized against the outcome surface, not the viewport: the demo renders it in
+     a narrow panel on a wide screen. */
   .type-door {
-    font-size: clamp(3.25rem, 14vw, 6.5rem);
+    font-size: clamp(3.25rem, 16cqi, 6.5rem);
     line-height: 1;
     letter-spacing: -0.035em;
   }
