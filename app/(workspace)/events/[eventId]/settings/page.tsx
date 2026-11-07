@@ -4,7 +4,7 @@ import { Card } from "@/components/ui";
 import { db, schema } from "@/lib/db";
 import { getOwnedEvent } from "@/lib/events";
 import { utcToZoned } from "@/lib/time";
-import { deleteEventAction, removeStaffAction, saveEventAction, setStatusAction } from "../../actions";
+import { addStaffAction, deleteEventAction, removeStaffAction, saveEventAction, setStatusAction } from "../../actions";
 import { EventForm } from "../../event-form";
 import { AddStaffForm } from "./add-staff-form";
 
@@ -54,7 +54,7 @@ export default async function SettingsPage({ params }: PageProps<"/events/[event
             </div>
           ))}
           <div className="p-5">
-            <AddStaffForm eventId={event.id} />
+            <AddStaffForm addStaff={addStaffAction.bind(null, event.id)} />
           </div>
         </Card>
       </Section>

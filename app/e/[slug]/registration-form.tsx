@@ -4,10 +4,16 @@ import { useActionState } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, Input, Notice, Select, Textarea } from "@/components/ui";
 import type { FormField } from "@/lib/db/schema";
-import { registerAction } from "./actions";
+import type { RegisterState } from "./actions";
 
-export function RegistrationForm({ slug, fields }: { slug: string; fields: FormField[] }) {
-  const [state, action] = useActionState(registerAction.bind(null, slug), {});
+export function RegistrationForm({
+  register,
+  fields,
+}: {
+  register: (state: RegisterState, form: FormData) => Promise<RegisterState>;
+  fields: FormField[];
+}) {
+  const [state, action] = useActionState(register, {});
   const v = state.values ?? {};
   const e = state.errors ?? {};
 

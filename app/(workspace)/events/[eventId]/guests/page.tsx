@@ -8,7 +8,7 @@ import { db, schema } from "@/lib/db";
 import { getOwnedEvent } from "@/lib/events";
 import { formatTime } from "@/lib/time";
 import { cn, formatTicketCode } from "@/lib/utils";
-import { cancelRegistrationAction, checkInAction, undoCheckInAction } from "../../actions";
+import { addGuestAction, cancelRegistrationAction, checkInAction, undoCheckInAction } from "../../actions";
 import { AddGuestForm } from "./add-guest-form";
 
 const { registrations } = schema;
@@ -60,7 +60,7 @@ export default async function GuestsPage({ params, searchParams }: PageProps<"/e
           <button className="sr-only">Search</button>
         </form>
         <div className="flex gap-2">
-          <AddGuestForm eventId={event.id} />
+          <AddGuestForm addGuest={addGuestAction.bind(null, event.id)} />
           <ButtonLink href={`/events/${event.id}/guests/export`} variant="secondary" prefetch={false}>
             <IconDownload className="size-4" /> CSV
           </ButtonLink>

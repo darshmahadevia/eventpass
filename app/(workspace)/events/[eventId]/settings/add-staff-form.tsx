@@ -3,10 +3,10 @@
 import { useActionState } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { Input } from "@/components/ui";
-import { addStaffAction } from "../../actions";
+import type { FormState } from "../../actions";
 
-export function AddStaffForm({ eventId }: { eventId: string }) {
-  const [state, action] = useActionState(addStaffAction.bind(null, eventId), {});
+export function AddStaffForm({ addStaff }: { addStaff: (state: FormState, form: FormData) => Promise<FormState> }) {
+  const [state, action] = useActionState(addStaff, {});
   return (
     <form action={action} className="grid gap-2">
       <div className="flex gap-2">

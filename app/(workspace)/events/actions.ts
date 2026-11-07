@@ -136,7 +136,7 @@ export async function saveFormAction(eventId: string, _: FormState, form: FormDa
   }
   await db.update(events).set({ form: fields }).where(eq(events.id, eventId));
   refresh(eventId);
-  return { ok: true };
+  return { ok: true, values: { fields: String(form.get("fields")) } };
 }
 
 // ── Door staff ──────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import { getUser } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
 import { closedReason, countRegistered } from "@/lib/events";
 import { formatEventRange } from "@/lib/time";
+import { registerAction } from "./actions";
 import { RegistrationForm } from "./registration-form";
 
 const getEvent = cache((slug: string) => db.query.events.findFirst({ where: eq(schema.events.slug, slug) }));
@@ -71,7 +72,7 @@ export default async function PublicEventPage({ params }: PageProps<"/e/[slug]">
         <Card className="h-fit p-6 lg:sticky lg:top-6">
           <h2 className="mb-5 text-lg font-bold">Register</h2>
           {reason === null ? (
-            <RegistrationForm slug={event.slug} fields={event.form} />
+            <RegistrationForm register={registerAction.bind(null, event.slug)} fields={event.form} />
           ) : (
             <Notice tone={reason === "draft" ? "accent" : "neutral"}>{CLOSED_COPY[reason]}</Notice>
           )}

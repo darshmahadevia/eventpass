@@ -5,7 +5,7 @@ import { useActionState, useState } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { Button, Card, Field, Input, Notice, Select, Textarea } from "@/components/ui";
 import type { FormField } from "@/lib/db/schema";
-import { saveFormAction, type FormState } from "../../actions";
+import type { FormState } from "../../actions";
 
 type Draft = FormField & { optionsText: string };
 
@@ -16,24 +16,29 @@ const TYPE_LABELS: Record<FormField["type"], string> = {
   checkbox: "Checkbox",
 };
 
+const toDrafts = (fields: FormField[]): Draft[] =>
+  fields.map((f) => ({ ...f, optionsText: f.options.join("\n") }));
+
+const serialize = (fields: Draft[]) =>
+  JSON.stringify(
+    fields.map(({ optionsText, ...f }) => ({
+      ...f,
+      options: f.type === "select" ? optionsText.split("\n").map((o) => o.trim()).filter(Boolean) : [],
+    })),
+  );
+
 // Not crypto.randomUUID: that needs a secure context, and LAN testing over http is common.
 const newId = () => `f_${Math.random().toString(36).slice(2, 10)}`;
 
-export function FormBuilder({ eventId, initial }: { eventId: string; initial: FormField[] }) {
-  const [fields, setFields] = useState<Draft[]>(() =>
-    initial.map((f) => ({ ...f, optionsText: f.options.join("\n") })),
-  );
-  const [dirty, setDirty] = useState(false);
-  const [state, action] = useActionState(async (prev: FormState, form: FormData) => {
-    const next = await saveFormAction(eventId, prev, form);
-    if (next.ok) setDirty(false);
-    return next;
-  }, {});
-
-  const update = (next: Draft[]) => {
-    setFields(next);
-    setDirty(true);
-  };
+export function FormBuilder({
+  saveForm,
+  initial,
+}: {
+  saveForm: (state: FormState, form: FormData) => Promise<FormState>;
+  initial: FormField[];
+}) {
+  const [fields, update] = useState(() => toDrafts(initial));
+  const [state, action] = useActionState(saveForm, {});
   const patch = (index: number, change: Partial<Draft>) =>
     update(fields.map((f, i) => (i === index ? { ...f, ...change } : f)));
   const move = (index: number, by: number) => {
@@ -43,12 +48,9 @@ export function FormBuilder({ eventId, initial }: { eventId: string; initial: Fo
     update(next);
   };
 
-  const payload = JSON.stringify(
-    fields.map(({ optionsText, ...f }) => ({
-      ...f,
-      options: optionsText.split("\n").map((o) => o.trim()).filter(Boolean),
-    })),
-  );
+  const payload = serialize(fields);
+  // Dirty means "differs from what the server last saved".
+  const dirty = payload !== (state.values?.fields ?? serialize(toDrafts(initial)));
 
   return (
     <form action={action} className="grid gap-4">
