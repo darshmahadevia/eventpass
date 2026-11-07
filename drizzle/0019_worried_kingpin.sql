@@ -1,1 +1,0 @@
-ALTER TABLE "registration" DROP COLUMN "management_token_revoked_at";

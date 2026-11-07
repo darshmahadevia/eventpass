@@ -1,129 +1,29 @@
 import type { Metadata, Viewport } from "next";
 import { Hanken_Grotesk } from "next/font/google";
+import { appUrl } from "@/lib/utils";
 import "./globals.css";
 
-// The whole product speaks in one face, from a ticket code to a door decision.
-// Hanken Grotesk is variable, so every weight comes from this one file.
-const hankenGrotesk = Hanken_Grotesk({
-  variable: "--font-hanken-grotesk",
-  subsets: ["latin"],
-});
-
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eventpass.hetjethva.tech";
-const siteDescription =
-  "Event registration, tickets, and door check-in, on a scanner that keeps working when the venue network does not.";
+const hanken = Hanken_Grotesk({ variable: "--font-hanken", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: {
-    default: "EventPass",
-    template: "%s · EventPass",
-  },
-  description: siteDescription,
-  applicationName: "EventPass",
-  openGraph: {
-    type: "website",
-    siteName: "EventPass",
-    title: "EventPass",
-    description: siteDescription,
-    url: siteUrl,
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "EventPass",
-    description: siteDescription,
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "EventPass",
-  },
+  metadataBase: new URL(appUrl()),
+  title: { default: "EventPass", template: "%s · EventPass" },
+  description:
+    "Event registration, QR tickets, and a door scanner that keeps working when the venue Wi-Fi doesn't.",
+  appleWebApp: { capable: true, title: "EventPass" },
 };
 
-// Browser chrome follows the active theme. The manifest carries a single
-// colour, so the per-scheme values live here.
-//
-// These are the only hex literals in the product. The browser will not read a
-// CSS custom property for the address bar. They are the sRGB conversions of
-// `--background` in each theme. Re-derive them if `--background` moves.
-//
-// The `media` conditions are the correct first paint, and only that. They answer
-// the OS, while the product answers the stored preference. THEME_SCRIPT below
-// re-points them once a viewer has chosen.
 export const viewport: Viewport = {
-  viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fcfdfe" },
-    { media: "(prefers-color-scheme: dark)", color: "#090c11" },
+    { media: "(prefers-color-scheme: light)", color: "#f9fafc" },
+    { media: "(prefers-color-scheme: dark)", color: "#13151b" },
   ],
 };
 
-// One owner for which theme is on. First paint, OS changes, other tabs, and
-// the switcher all arrive here.
-const THEME_SCRIPT = `(function(){
-var K='eventpass-theme';
-var q=window.matchMedia('(prefers-color-scheme: dark)');
-function paint(dark){
-  var m=document.querySelectorAll('meta[name="theme-color"]');
-  for(var i=0;i<m.length;i++){
-    var t=m[i];
-    if(!t.dataset.scheme)t.dataset.scheme=/dark/.test(t.media)?'dark':'light';
-    t.media=((t.dataset.scheme==='dark')===dark)?'all':'not all';
-  }
-}
-function apply(){
-  var s=null;try{s=localStorage.getItem(K)}catch(e){}
-  var dark=s==='dark'||(s!=='light'&&q.matches);
-  document.documentElement.classList.toggle('dark',dark);
-  paint(dark);
-}
-window.__eventpassTheme=apply;
-apply();
-q.addEventListener('change',apply);
-window.addEventListener('storage',function(e){if(!e.key||e.key===K)apply()});
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply);
-})();`;
-
-// Shipped in the page source for whoever opens view-source on the product.
-const DESIGN_CONTRACT = `<!--
-EventPass design contract.
-
-ONE VOICE: Hanken Grotesk carries everything, from a table cell to a door
-decision. Hierarchy is size, weight and spacing; leading and letter-spacing are
-bound to each step of the type scale, never set per element.
-
-SURFACE: Near-monochrome neutrals, flat, separated by hairlines. One elevation
-system. Unmodified shadcn primitives.
-
-COLOUR IS STATE: Saturated colour appears only where the product is reporting
-something — accepted, not yet confirmed, repeated, refused. Never decoration.
-An offline yes never renders in the colour of a confirmed one. Door decisions
-run at full volume: one colour, edge to edge, ink on top.
-
-TOKENS: Every colour, radius, weight and type size comes from globals.css.
-No raw values, no per-component palettes.
--->`;
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`h-full antialiased ${hankenGrotesk.variable}`}
-    >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-      </head>
-      <body className="flex min-h-full flex-col">
-        {/* The design contract as a real HTML comment. A JSX comment is a
-            JavaScript comment. The compiler drops it. */}
-        <div hidden aria-hidden="true" dangerouslySetInnerHTML={{ __html: DESIGN_CONTRACT }} />
-        {children}
-      </body>
+    <html lang="en" className={hanken.variable}>
+      <body className="min-h-dvh font-sans">{children}</body>
     </html>
   );
 }

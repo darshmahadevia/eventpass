@@ -1,126 +1,113 @@
 import "server-only";
+import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { and, count, desc, eq, gt, lt } from "drizzle-orm";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { cache } from "react";
+import { db, schema } from "@/lib/db";
+import { sendEmail } from "@/lib/email";
 
-import { randomBytes } from "node:crypto";
-import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import { betterAuth } from "better-auth";
-import { APIError } from "better-auth/api";
-import { nextCookies } from "better-auth/next-js";
-import { magicLink } from "better-auth/plugins";
-import { eq } from "drizzle-orm";
+const SESSION_COOKIE = "ep_session";
+const SESSION_DAYS = 30;
+const CODE_MINUTES = 10;
+const MAX_CODES_PER_WINDOW = 5;
+const MAX_ATTEMPTS = 5;
 
-import { db } from "@/lib/db";
-import * as schema from "@/lib/db/schema";
-import { getConfiguredApplicationUrl } from "@/lib/application-url";
-import { digestTokenBase64Url } from "@/lib/bearer-token-digest";
-import {
-  sendStaffMagicLink,
-  StaffMagicLinkDeliveryError,
-} from "@/lib/email/send-staff-magic-link";
+const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 
-const MAGIC_LINK_SECONDS = 60 * 15;
-const MAX_MAGIC_LINK_DELIVERIES = 3;
+export const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
-export const auth = betterAuth({
-  appName: "EventPass",
-  baseURL: getConfiguredApplicationUrl(),
-  database: drizzleAdapter(db, {
-    provider: "pg",
-    schema,
-  }),
-  user: {
-    additionalFields: {
-      suspended: {
-        type: "boolean",
-        required: true,
-        defaultValue: false,
-        input: false,
-      },
-      isPlatformAdmin: {
-        type: "boolean",
-        required: true,
-        defaultValue: false,
-        input: false,
-      },
-    },
-  },
-  session: {
-    expiresIn: 60 * 60 * 24 * 7,
-    updateAge: 60 * 60 * 24,
-  },
-  verification: {
-    storeIdentifier: "hashed",
-  },
-  rateLimit: { enabled: false },
-  advanced: {
-    database: {
-      generateId: "uuid",
-    },
-  },
-  databaseHooks: {
-    session: {
-      create: {
-        before: async (newSession) => {
-          const [staffUser] = await db
-            .select({ suspended: schema.user.suspended })
-            .from(schema.user)
-            .where(eq(schema.user.id, newSession.userId))
-            .limit(1);
+/** Emails a 6-digit sign-in code. Returns false when the address is rate limited. */
+export async function requestLoginCode(email: string): Promise<boolean> {
+  const since = new Date(Date.now() - CODE_MINUTES * 60_000);
+  const [recent] = await db
+    .select({ n: count() })
+    .from(schema.loginCodes)
+    .where(and(eq(schema.loginCodes.email, email), gt(schema.loginCodes.createdAt, since)));
+  if ((recent?.n ?? 0) >= MAX_CODES_PER_WINDOW) return false;
 
-          if (staffUser?.suspended) {
-            throw new APIError("FORBIDDEN", {
-              message: "This staff user is suspended.",
-            });
-          }
+  const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
+  await db.insert(schema.loginCodes).values({
+    email,
+    codeHash: sha256(code),
+    expiresAt: new Date(Date.now() + CODE_MINUTES * 60_000),
+  });
+  await sendEmail({
+    to: email,
+    subject: `Your EventPass sign-in code: ${code}`,
+    text: `Your sign-in code is ${code}. It expires in ${CODE_MINUTES} minutes.\n\nIf you didn't try to sign in, you can ignore this email.`,
+  });
+  return true;
+}
 
-          return { data: newSession };
-        },
-      },
-    },
-  },
-  plugins: [
-    magicLink({
-      expiresIn: MAGIC_LINK_SECONDS,
-      storeToken: "hashed",
-      sendMagicLink: async ({ email, token, url }, context) => {
-        let currentToken = token;
-        let currentUrl = url;
+/** Checks the newest live code for the email and starts a session on success. */
+export async function verifyLoginCode(email: string, code: string): Promise<boolean> {
+  const [row] = await db
+    .select()
+    .from(schema.loginCodes)
+    .where(and(eq(schema.loginCodes.email, email), gt(schema.loginCodes.expiresAt, new Date())))
+    .orderBy(desc(schema.loginCodes.createdAt))
+    .limit(1);
+  if (!row || row.attempts >= MAX_ATTEMPTS) return false;
 
-        for (let attempt = 1; attempt <= MAX_MAGIC_LINK_DELIVERIES; attempt += 1) {
-          try {
-            await sendStaffMagicLink(email, currentUrl);
-            return;
-          } catch (error) {
-            if (
-              !(error instanceof StaffMagicLinkDeliveryError) ||
-              !error.retryable ||
-              !context ||
-              attempt === MAX_MAGIC_LINK_DELIVERIES
-            ) {
-              throw error;
-            }
+  await db
+    .update(schema.loginCodes)
+    .set({ attempts: row.attempts + 1 })
+    .where(eq(schema.loginCodes.id, row.id));
 
-            const identifier = digestTokenBase64Url(currentToken);
-            const verification =
-              await context.context.internalAdapter.findVerificationValue(identifier);
+  const expected = Buffer.from(row.codeHash);
+  const actual = Buffer.from(sha256(code.trim()));
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return false;
 
-            if (!verification) {
-              throw error;
-            }
+  await db.delete(schema.loginCodes).where(eq(schema.loginCodes.email, email));
+  const [user] = await db
+    .insert(schema.users)
+    .values({ email })
+    .onConflictDoUpdate({ target: schema.users.email, set: { email } })
+    .returning();
+  if (!user) return false;
+  await startSession(user.id);
+  return true;
+}
 
-            await context.context.internalAdapter.deleteVerificationByIdentifier(identifier);
-            currentToken = randomBytes(32).toString("base64url");
-            await context.context.internalAdapter.createVerificationValue({
-              expiresAt: new Date(Date.now() + MAGIC_LINK_SECONDS * 1_000),
-              identifier: digestTokenBase64Url(currentToken),
-              value: verification.value,
-            });
-            const nextUrl = new URL(currentUrl);
-            nextUrl.searchParams.set("token", currentToken);
-            currentUrl = nextUrl.toString();
-          }
-        }
-      },
-    }),
-    nextCookies(),
-  ],
+export async function startSession(userId: string) {
+  const token = randomBytes(32).toString("base64url");
+  const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000);
+  await db.delete(schema.sessions).where(lt(schema.sessions.expiresAt, new Date()));
+  await db.insert(schema.sessions).values({ tokenHash: sha256(token), userId, expiresAt });
+  (await cookies()).set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    expires: expiresAt,
+  });
+}
+
+export async function endSession() {
+  const jar = await cookies();
+  const token = jar.get(SESSION_COOKIE)?.value;
+  if (token) await db.delete(schema.sessions).where(eq(schema.sessions.tokenHash, sha256(token)));
+  jar.delete(SESSION_COOKIE);
+}
+
+export type User = { id: string; email: string };
+
+export const getUser = cache(async (): Promise<User | null> => {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!token) return null;
+  const [row] = await db
+    .select({ id: schema.users.id, email: schema.users.email })
+    .from(schema.sessions)
+    .innerJoin(schema.users, eq(schema.users.id, schema.sessions.userId))
+    .where(
+      and(eq(schema.sessions.tokenHash, sha256(token)), gt(schema.sessions.expiresAt, new Date())),
+    );
+  return row ?? null;
 });
+
+export async function requireUser(): Promise<User> {
+  const user = await getUser();
+  if (!user) redirect("/sign-in");
+  return user;
+}

@@ -1,402 +1,127 @@
-import type { Metadata } from "next";
+import {
+  IconCalendarEvent,
+  IconChecklist,
+  IconForms,
+  IconQrcode,
+  IconUsers,
+  IconWifiOff,
+} from "@tabler/icons-react";
 import Link from "next/link";
-import { IconArrowRight, IconPlus } from "@tabler/icons-react";
+import { SubmitButton } from "@/components/submit-button";
+import { ButtonLink, Card, Logo } from "@/components/ui";
+import { getUser } from "@/lib/auth";
+import { startDemoAction } from "./actions";
 
-import { EventPassMark } from "@/components/eventpass-mark";
-import { PendingLink } from "@/components/pending-link";
-import { buttonVariants } from "@/components/ui/button";
-import { ScanOutcome } from "@/features/admission/scan-outcome";
-import { DoorAnswers } from "@/features/landing/door-answers";
-import { DoorStage } from "@/features/landing/door-stage";
-import { LandingHeader } from "@/features/landing/landing-header";
-import { OperationsPreview } from "@/features/landing/operations-preview";
-import { PhoneFrame } from "@/features/landing/phone-frame";
-import { TicketShowcase } from "@/features/landing/product-showcase";
-import { cn } from "@/lib/utils";
-
-import "@/features/landing/landing.css";
-
-export const metadata: Metadata = {
-  title: {
-    absolute: "EventPass — event check-in that works without Wi-Fi",
-  },
-  description:
-    "Registration, tickets, and door check-in for in-person events. The scanner keeps working when the venue network does not.",
-};
-
-const assurances = [
-  {
-    title: "Offline scans stay accountable",
-    description:
-      "The same phone catches repeat scans immediately. When separate phones scan offline, EventPass reconciles them after reconnecting and keeps every conflict visible.",
-  },
-  {
-    title: "Mistakes are fixable",
-    description:
-      "Undo a check-in, reissue a ticket, or change who has access. Every correction keeps the name, time, and reason.",
-  },
-  {
-    title: "One screen for the room",
-    description:
-      "Arrivals, capacity, and anything still waiting to confirm sit together, so you never guess how full the room is.",
-  },
+const FEATURES = [
+  { icon: IconCalendarEvent, title: "Events in a minute", body: "Title, time, place, capacity. Publish when you're ready and share one link." },
+  { icon: IconForms, title: "Your own questions", body: "Add text, choice, and checkbox fields to the registration form." },
+  { icon: IconQrcode, title: "QR tickets by email", body: "Guests get a ticket page with a QR code that works on screen or on paper." },
+  { icon: IconWifiOff, title: "Offline door scanner", body: "The guest list lives on the phone. Scans queue offline and sync when the network returns." },
+  { icon: IconChecklist, title: "Live arrivals", body: "See who's in, who's expected, and capacity at a glance. Undo a check-in in one tap." },
+  { icon: IconUsers, title: "Door team", body: "Add volunteers by email. They sign in and only see the scanner for your event." },
 ];
 
-// A run of show: the times are the structure, so they carry the row.
-const runOfShow = [
-  {
-    when: "Weeks out",
-    who: "Organizer",
-    title: "Set up the event",
-    description:
-      "Set capacity and check-in times, build the registration form, and invite the people working the door.",
-  },
-  {
-    when: "As guests sign up",
-    who: "Guest",
-    title: "Register and get a ticket",
-    description:
-      "Guests confirm by email and their ticket arrives straight away. No account to create, nothing to install.",
-  },
-  {
-    when: "Before doors",
-    who: "Volunteer",
-    title: "Load the guest list",
-    description:
-      "Volunteers download the list onto their phone while the signal is good, so the door is ready before the network is tested.",
-  },
-  {
-    when: "Doors open",
-    who: "Volunteer",
-    title: "Scan and admit",
-    description:
-      "One scan, one clear answer. Anything unusual says so in plain words, along with what to do next.",
-  },
-  {
-    when: "After the last guest",
-    who: "Organizer",
-    title: "Settle the count",
-    description:
-      "Held scans reconcile, conflicts wait for a person, and every correction stays in the audit log.",
-  },
-];
+export default async function HomePage() {
+  const user = await getUser();
 
-const questions = [
-  {
-    question: "Do guests need an app or an account?",
-    answer:
-      "No. Guests register through a link, confirm by email, and receive their ticket. It opens on any phone and prints cleanly on paper.",
-  },
-  {
-    question: "What happens to scans when the Wi-Fi drops?",
-    answer:
-      "Volunteers keep admitting guests. Each scan is saved on the phone and shown as not confirmed yet, then goes to the server once the phone reconnects.",
-  },
-  {
-    question: "What if two phones scan the same ticket offline?",
-    answer:
-      "The phones reconcile after reconnecting. If they disagree, the conflict stays visible until a member of staff resolves it. A repeat on the same phone is caught on the spot.",
-  },
-  {
-    question: "What do door volunteers need?",
-    answer:
-      "A phone with a camera and an invitation from the organizer. They load the guest list before doors open, while the signal is good.",
-  },
-  {
-    question: "Can I bring a guest list I already have?",
-    answer:
-      "Yes. Import registrations from a CSV file, preview them first, and export the list again whenever you need it.",
-  },
-];
-
-const ctaSize = "h-12 px-5 text-base has-data-[icon=inline-end]:pr-4";
-
-function PrimaryCta() {
   return (
-    <PendingLink
-      href="/sign-in"
-      className={cn(buttonVariants({ size: "lg" }), ctaSize)}
-      pendingLabel="Opening sign in"
-    >
-      Get started
-      <IconArrowRight data-icon="inline-end" />
-    </PendingLink>
-  );
-}
+    <div className="min-h-dvh">
+      <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
+        <Logo className="text-lg" />
+        <ButtonLink href={user ? "/events" : "/sign-in"} variant="secondary">
+          {user ? "Your events" : "Sign in"}
+        </ButtonLink>
+      </header>
 
-function DemoCta() {
-  return (
-    <PendingLink
-      href="/demo"
-      className={cn(
-        buttonVariants({ variant: "outline", size: "lg" }),
-        ctaSize,
-        "border-poster-ink/50 bg-transparent hover:bg-poster-ink/10",
-      )}
-      pendingLabel="Opening demo"
-    >
-      Try the demo
-    </PendingLink>
-  );
-}
-
-function YesPanel({
-  className,
-  outcome,
-  signal,
-  note,
-}: {
-  className: string;
-  outcome: "accepted" | "provisional";
-  signal: string;
-  note: string;
-}) {
-  return (
-    <figure
-      className={cn(
-        "signal-surface flex flex-col items-center justify-center gap-8 px-4 py-12 text-poster-ink sm:py-16 xl:flex-row-reverse xl:gap-12",
-        className,
-      )}
-    >
-      <PhoneFrame>
-        <ScanOutcome
-          outcome={outcome}
-          attendeeName="Priya Raman"
-          titleAs="p"
-          reserveQualifier
-        />
-      </PhoneFrame>
-      <figcaption className="max-w-xs text-center xl:max-w-56 xl:text-left">
-        <p className="type-answer">{signal}</p>
-        <p className="mt-2 text-base text-pretty">{note}</p>
-      </figcaption>
-    </figure>
-  );
-}
-
-export default function Home() {
-  return (
-    <div className="flex min-h-svh flex-col">
-      <a
-        href="#main"
-        className="sr-only z-40 rounded-md bg-primary px-4 py-3 text-primary-foreground focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
-      >
-        Skip to content
-      </a>
-
-      <LandingHeader />
-
-      <main id="main" className="flex-1">
-        <DoorStage
-          headline={
-            <h1 id="stage-heading" className="type-stage">
-              Keep the line moving when the{" "}
-              <span className="whitespace-nowrap">Wi-Fi</span> doesn’t.
-            </h1>
-          }
-          lede={
-            <div className="flex flex-col items-start gap-4">
-              <p className="max-w-lg text-base text-pretty sm:text-lg lg:text-xl lg:leading-snug">
-                Registration, tickets, and door check-in for in-person events,
-                on a scanner that keeps working when the venue network gives
-                out.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <PrimaryCta />
-                <DemoCta />
-              </div>
-            </div>
-          }
-        />
-
-        <section aria-labelledby="door-heading" id="door">
-          <div className="mx-auto grid w-full max-w-[120rem] gap-6 px-4 py-20 sm:px-8 sm:py-28 lg:grid-cols-2 lg:items-end lg:gap-10">
-            <h2 id="door-heading" className="type-section">
-              Two kinds of yes, never confused.
-            </h2>
-            <p className="max-w-xl text-lg text-muted-foreground text-pretty lg:text-xl lg:leading-snug">
-              With a signal, a check-in is settled the moment it happens.
-              Without one, it is held on the volunteer’s phone and shown as
-              unconfirmed until it lands. EventPass will not colour those the
-              same.
+      <main>
+        <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pt-12 pb-20 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:pt-20">
+          <div>
+            <p className="mb-4 inline-flex rounded-full bg-accent-soft px-3 py-1 text-sm font-semibold text-accent">
+              Registration · Tickets · Check-in
             </p>
-          </div>
-
-          <div className="grid md:grid-cols-2">
-            <YesPanel
-              className="bg-poster-confirmed"
-              outcome="accepted"
-              signal="With a signal"
-              note="Settled at once, across every door."
-            />
-            <YesPanel
-              className="bg-poster-held"
-              outcome="provisional"
-              signal="Without a signal"
-              note="Let them in now. It reconciles after reconnecting."
-            />
-          </div>
-        </section>
-
-        <section aria-labelledby="answers-heading">
-          <DoorAnswers
-            intro={
-              <div className="flex flex-col gap-5">
-                <h2 id="answers-heading" className="type-section">
-                  Trouble gets a plain answer.
-                </h2>
-                <p className="max-w-xl text-lg text-muted-foreground text-pretty">
-                  A volunteer with a queue behind them gets what happened and
-                  what to do next, in one glance. Pick a situation to see the
-                  screen.
-                </p>
-              </div>
-            }
-          />
-        </section>
-
-        <section
-          aria-labelledby="count-heading"
-          id="count"
-          className="dark border-y bg-background text-foreground"
-        >
-          <div className="mx-auto flex w-full max-w-[120rem] flex-col gap-12 px-4 py-20 sm:px-8 sm:py-28">
-            <div className="grid gap-6 lg:grid-cols-2 lg:items-end lg:gap-10">
-              <h2 id="count-heading" className="type-section">
-                The count is honest.
-              </h2>
-              <p className="max-w-xl text-lg text-muted-foreground text-pretty lg:text-xl lg:leading-snug">
-                What the volunteer sees and what the organizer sees agree, and
-                anything still unconfirmed is counted as exactly that.
-              </p>
+            <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl lg:text-6xl">
+              The door keeps moving when the Wi-Fi doesn&apos;t.
+            </h1>
+            <p className="mt-6 max-w-xl text-lg text-muted text-pretty">
+              EventPass takes guests from a sign-up link to a QR ticket to the front door. Volunteers scan
+              with their phone camera, online or off, and every arrival shows up on your dashboard.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <form action={startDemoAction}>
+                <SubmitButton pendingText="Setting up demo…" className="h-12 px-6 text-base">
+                  Try the live demo
+                </SubmitButton>
+              </form>
+              <ButtonLink href="/sign-in" variant="secondary" className="h-12 px-6 text-base">
+                Create an event
+              </ButtonLink>
             </div>
+            <p className="mt-3 text-sm text-muted">The demo opens a sample event with 46 guests. No email needed.</p>
+          </div>
 
-            <OperationsPreview />
+          <ScanPreview />
+        </section>
 
-            <ul className="grid gap-x-10 gap-y-8 sm:grid-cols-3">
-              {assurances.map(({ description, title }) => (
-                <li className="flex flex-col gap-2" key={title}>
-                  <h3 className="text-lg font-medium">{title}</h3>
-                  <p className="text-base text-muted-foreground text-pretty">
-                    {description}
-                  </p>
-                </li>
+        <section className="border-t border-border bg-card/50">
+          <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Everything between the invite and the door</h2>
+            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {FEATURES.map(({ icon: Icon, title, body }) => (
+                <div key={title}>
+                  <Icon className="size-6 text-accent" stroke={1.75} />
+                  <h3 className="mt-3 font-semibold">{title}</h3>
+                  <p className="mt-1 text-sm text-muted">{body}</p>
+                </div>
               ))}
-            </ul>
-          </div>
-        </section>
-
-        <section
-          aria-labelledby="ticket-heading"
-          className="bg-muted [--ticket-surround:var(--muted)]"
-          id="ticket"
-        >
-          <div className="mx-auto grid w-full max-w-[120rem] gap-10 px-4 py-20 sm:px-8 sm:py-28 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-16">
-            <div className="flex flex-col gap-5">
-              <h2 id="ticket-heading" className="type-section">
-                A ticket built for a phone at a door.
-              </h2>
-              <p className="max-w-xl text-lg text-muted-foreground text-pretty">
-                The code, the guest, and the event lead on every screen size. It
-                scans from a cracked phone in a dark corridor and prints cleanly
-                if someone would rather bring paper.
-              </p>
-            </div>
-            <TicketShowcase />
-          </div>
-        </section>
-
-        <section aria-labelledby="how-heading" id="how-it-works">
-          <div className="mx-auto w-full max-w-[120rem] px-4 py-20 sm:px-8 sm:py-28">
-            <h2 id="how-heading" className="type-section max-w-4xl">
-              From the first sign-up to the final headcount.
-            </h2>
-
-            <ol className="mt-14 border-b">
-              {runOfShow.map(({ description, title, when, who }) => (
-                <li
-                  key={title}
-                  className="grid gap-x-10 gap-y-2 border-t py-6 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)_6rem] md:items-baseline"
-                >
-                  <p className="type-answer">{when}</p>
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-xl font-medium">{title}</h3>
-                    <p className="max-w-xl text-base text-muted-foreground text-pretty">
-                      {description}
-                    </p>
-                  </div>
-                  <p className="text-sm text-muted-foreground md:text-right">
-                    {who}
-                  </p>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </section>
-
-        <section aria-labelledby="questions-heading" id="questions">
-          <div className="mx-auto grid w-full max-w-[120rem] gap-10 px-4 pb-20 sm:px-8 sm:pb-28 lg:grid-cols-2">
-            <h2 id="questions-heading" className="type-section">
-              Questions from the door.
-            </h2>
-            <div className="faq-list border-b">
-              {questions.map(({ answer, question }) => (
-                <details key={question} name="faq" className="faq-item border-t">
-                  <summary className="flex min-h-16 cursor-pointer items-center justify-between gap-6 rounded-md py-4 text-lg font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
-                    {question}
-                    <IconPlus aria-hidden="true" className="faq-plus size-5 shrink-0" />
-                  </summary>
-                  <p className="max-w-xl pb-6 text-base text-muted-foreground text-pretty">
-                    {answer}
-                  </p>
-                </details>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section
-          aria-labelledby="closing-heading"
-          className="poster-surface signal-surface bg-poster-confirmed px-4 py-16 sm:px-8 sm:py-24"
-        >
-          <div className="closing-ticket relative mx-auto grid max-w-[120rem] md:grid-cols-[70%_30%]">
-            <div className="p-6 sm:p-10 lg:p-14">
-              <h2 id="closing-heading" className="type-section">
-                Set up your next event tonight.
-              </h2>
-              <p className="mt-4 max-w-lg text-lg text-pretty">
-                Create the event, share the registration link, and hand your
-                door team a scanner that keeps going at the worst moment.
-              </p>
-            </div>
-            <span aria-hidden="true" className="closing-seam" />
-            <div className="flex flex-col items-stretch justify-center gap-3 p-6 sm:p-10 md:pl-12">
-              <PrimaryCta />
-              <DemoCta />
             </div>
           </div>
         </section>
       </main>
 
-      <footer>
-        <div className="mx-auto flex w-full max-w-[120rem] flex-col gap-4 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <EventPassMark />
-          <nav aria-label="Footer" className="flex items-center gap-6 text-sm">
-            <Link
-              href="/demo"
-              className="py-3 text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              Try the demo
-            </Link>
-            <Link
-              href="/sign-in"
-              className="py-3 text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              Sign in
-            </Link>
-          </nav>
-        </div>
+      <footer className="mx-auto flex max-w-6xl justify-between px-4 py-8 text-sm text-muted sm:px-6">
+        <span>EventPass</span>
+        <Link href="/sign-in" className="hover:text-fg">
+          Organizer sign in
+        </Link>
       </footer>
+    </div>
+  );
+}
+
+function ScanPreview() {
+  return (
+    <div className="mx-auto w-full max-w-sm" aria-hidden>
+      <Card className="overflow-hidden shadow-xl shadow-accent/10">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3 text-sm">
+          <span className="font-semibold">Door · Main entrance</span>
+          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning">
+            Offline · 3 queued
+          </span>
+        </div>
+        <div className="grid gap-3 p-4">
+          <div className="rounded-xl bg-success px-5 py-6 text-center text-white">
+            <p className="text-sm font-semibold opacity-90">Admitted</p>
+            <p className="mt-1 text-2xl font-bold">Maya Okafor</p>
+            <p className="mt-1 font-mono text-xs opacity-80">7KQ2-M9XD-4TRH-PB3N</p>
+          </div>
+          <div className="rounded-xl bg-danger-soft px-5 py-4 text-center text-danger">
+            <p className="text-sm font-semibold">Already checked in at 7:42 PM</p>
+            <p className="font-bold">Leo Novak</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center text-sm">
+            {[
+              ["31", "In"],
+              ["13", "Expected"],
+              ["80", "Capacity"],
+            ].map(([n, label]) => (
+              <div key={label} className="rounded-lg bg-subtle py-2">
+                <p className="text-lg font-bold">{n}</p>
+                <p className="text-xs text-muted">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }

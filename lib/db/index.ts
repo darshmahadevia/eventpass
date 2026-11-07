@@ -1,25 +1,15 @@
 import "server-only";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import * as schema from "./schema";
 
-import { Pool } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-serverless";
+const globalForDb = globalThis as unknown as { pool?: Pool };
 
-import { configureNeonForLocalPostgres } from "@/lib/neon-local-proxy";
+// Reuse one pool across dev hot reloads.
+const pool =
+  globalForDb.pool ??
+  new Pool({ connectionString: process.env.DATABASE_URL, max: 5 });
+if (process.env.NODE_ENV !== "production") globalForDb.pool = pool;
 
-const databaseUrl =
-  process.env.DATABASE_URL ||
-  "postgresql://placeholder:placeholder@localhost:5432/placeholder";
-
-// Inert unless DATABASE_URL points at a local Postgres, which is the only case
-// the driver cannot reach on its own. Must run before the Pool is constructed.
-configureNeonForLocalPostgres(process.env.DATABASE_URL);
-
-const client = new Pool({ connectionString: databaseUrl });
-
-export const db = drizzle({ client });
-
-// The pool client and an open transaction both satisfy this. Services take it
-// so callers can run work inside one transaction and roll that transaction back.
-export type DatabaseClient = Pick<
-  typeof db,
-  "select" | "insert" | "update" | "delete" | "execute" | "transaction"
->;
+export const db = drizzle(pool, { schema });
+export { schema };
