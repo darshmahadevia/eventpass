@@ -6,7 +6,7 @@ import { useEffect } from "react";
 // Client-only: the scanner's state lives in this device's localStorage.
 const Scanner = dynamic(() => import("./scanner"), {
   ssr: false,
-  loading: () => <p className="p-8 text-center text-muted">Loading scanner…</p>,
+  loading: () => <div data-theme="dark" className="grid min-h-dvh place-items-center bg-bg text-sm text-muted">Loading scanner…</div>,
 });
 
 const CACHE = "eventpass-v1";

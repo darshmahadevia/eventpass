@@ -1,127 +1,188 @@
-import {
-  IconCalendarEvent,
-  IconChecklist,
-  IconForms,
-  IconQrcode,
-  IconUsers,
-  IconWifiOff,
-} from "@tabler/icons-react";
 import Link from "next/link";
+import QRCode from "qrcode";
 import { SubmitButton } from "@/components/submit-button";
-import { ButtonLink, Card, Logo } from "@/components/ui";
+import { ThemeSwitcher } from "@/components/theme";
+import { ButtonLink, Logo } from "@/components/ui";
 import { getUser } from "@/lib/auth";
+import type { Stock } from "@/lib/stock";
+import { cn } from "@/lib/utils";
 import { startDemoAction } from "./actions";
+import { DoorDemo } from "./door-demo";
 
-const FEATURES = [
-  { icon: IconCalendarEvent, title: "Events in a minute", body: "Title, time, place, capacity. Publish when you're ready and share one link." },
-  { icon: IconForms, title: "Your own questions", body: "Add text, choice, and checkbox fields to the registration form." },
-  { icon: IconQrcode, title: "QR tickets by email", body: "Guests get a ticket page with a QR code that works on screen or on paper." },
-  { icon: IconWifiOff, title: "Offline door scanner", body: "The guest list lives on the phone. Scans queue offline and sync when the network returns." },
-  { icon: IconChecklist, title: "Live arrivals", body: "See who's in, who's expected, and capacity at a glance. Undo a check-in in one tap." },
-  { icon: IconUsers, title: "Door team", body: "Add volunteers by email. They sign in and only see the scanner for your event." },
+const JOURNEY: { stock: Stock; title: string; body: string }[] = [
+  {
+    stock: "marigold",
+    title: "Share one link",
+    body: "Set the time, the place, and a capacity. Add your own questions, publish, and send the link anywhere.",
+  },
+  {
+    stock: "rose",
+    title: "Guests get a ticket",
+    body: "No account to make. Each guest gets a QR ticket by email that works on a phone or on paper.",
+  },
+  {
+    stock: "mint",
+    title: "Scan at the door",
+    body: "Volunteers use their phone camera. Green means in, red means stop, and you see every arrival live.",
+  },
+];
+
+const OFFLINE = [
+  {
+    title: "Before doors",
+    body: "The scanner saves the whole guest list to the phone and keeps it fresh every 15 seconds.",
+  },
+  {
+    title: "When the network drops",
+    body: "Scans are checked against the list on the phone. Repeat tickets still get caught, and each admission is saved with its time.",
+  },
+  {
+    title: "When it comes back",
+    body: "Saved scans sync on their own. If two doors let in the same ticket, the scanner tells you who.",
+  },
+];
+
+const DETAILS = [
+  ["Your own questions", "Short answers, multiple choice, and checkboxes on the registration form."],
+  ["Capacity that holds", "Sign-ups stop at your limit, even when two people register at the same moment."],
+  ["A door team", "Add volunteers by email. They sign in and only see the scanner for your event."],
+  ["Live arrivals", "Who's in, who's expected, and how full the room is, with one-tap undo."],
+  ["Guest list export", "Download everyone, with their answers, as a CSV."],
+  ["Calendar and print", "Guests can add the event to a calendar or print their ticket."],
 ];
 
 export default async function HomePage() {
   const user = await getUser();
+  const qr = await QRCode.toString("EVENTPASS-DEMO-TICKET", { type: "svg", margin: 0, errorCorrectionLevel: "L" });
 
   return (
-    <div className="min-h-dvh">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
-        <Logo className="text-lg" />
-        <ButtonLink href={user ? "/events" : "/sign-in"} variant="secondary">
-          {user ? "Your events" : "Sign in"}
-        </ButtonLink>
+    <div className="min-h-dvh overflow-x-clip">
+      <header className="mx-auto flex max-w-[90rem] items-center justify-between gap-3 px-5 py-5 sm:px-8 lg:px-12">
+        <Logo />
+        <div className="flex items-center gap-3">
+          <ThemeSwitcher />
+          <ButtonLink href={user ? "/events" : "/sign-in"} variant="secondary" size="sm">
+            {user ? "Your events" : "Sign in"}
+          </ButtonLink>
+        </div>
       </header>
 
       <main>
-        <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pt-12 pb-20 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:pt-20">
+        <section className="mx-auto grid max-w-[90rem] items-center gap-x-12 gap-y-14 px-5 pt-8 pb-20 sm:px-8 lg:grid-cols-[minmax(0,1fr)_21.5rem] lg:px-12 lg:pt-6 lg:pb-28 xl:grid-cols-[minmax(0,1fr)_24rem]">
           <div>
-            <p className="mb-4 inline-flex rounded-full bg-accent-soft px-3 py-1 text-sm font-semibold text-accent">
-              Registration · Tickets · Check-in
-            </p>
-            <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl lg:text-6xl">
-              The door keeps moving when the Wi-Fi doesn&apos;t.
+            <h1 className="display text-[clamp(3rem,6.6vw,6.5rem)] leading-[0.98] text-balance">
+              The door keeps moving when the Wi&#8209;Fi doesn&apos;t.
             </h1>
-            <p className="mt-6 max-w-xl text-lg text-muted text-pretty">
-              EventPass takes guests from a sign-up link to a QR ticket to the front door. Volunteers scan
-              with their phone camera, online or off, and every arrival shows up on your dashboard.
+            <p className="mt-7 max-w-xl text-xl leading-relaxed text-pretty text-muted">
+              Registration, QR tickets, and a phone scanner for the front door, built for the moment the venue
+              network gives out.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-8 flex flex-wrap items-center gap-3">
               <form action={startDemoAction}>
-                <SubmitButton pendingText="Setting up demo…" className="h-12 px-6 text-base">
+                <SubmitButton size="lg" pendingText="Setting up demo…">
                   Try the live demo
                 </SubmitButton>
               </form>
-              <ButtonLink href="/sign-in" variant="secondary" className="h-12 px-6 text-base">
+              <ButtonLink href={user ? "/events/new" : "/sign-in?next=/events/new"} variant="secondary" size="lg">
                 Create an event
               </ButtonLink>
             </div>
-            <p className="mt-3 text-sm text-muted">The demo opens a sample event with 46 guests. No email needed.</p>
+            <p className="mt-4 text-muted">Opens a sample event with 46 guests. No email needed.</p>
           </div>
 
-          <ScanPreview />
+          <DoorDemo qr={qr} />
         </section>
 
-        <section className="border-t border-border bg-card/50">
-          <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Everything between the invite and the door</h2>
-            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {FEATURES.map(({ icon: Icon, title, body }) => (
-                <div key={title}>
-                  <Icon className="size-6 text-accent" stroke={1.75} />
-                  <h3 className="mt-3 font-semibold">{title}</h3>
-                  <p className="mt-1 text-sm text-muted">{body}</p>
+        {/* A strip of tickets off one roll: the real order of things, so it's numbered. */}
+        <section className="mx-auto max-w-[90rem] px-5 sm:px-8 lg:px-12">
+          <h2 className="display text-4xl sm:text-5xl lg:text-6xl">From invite to door</h2>
+          <ol className="paper-shadow mt-10 grid lg:grid-cols-3">
+            {JOURNEY.map(({ stock, title, body }, index) => (
+              <li
+                key={title}
+                data-stock={stock}
+                className={cn(
+                  "relative flex min-h-80 flex-col justify-between bg-accent p-7 text-ink lg:p-8",
+                  index === 0 && "notch-b rounded-t-3xl lg:notch-r lg:rounded-l-3xl lg:rounded-tr-none",
+                  index === 1 && "notch-both",
+                  index === 2 && "notch-t rounded-b-3xl lg:notch-l lg:rounded-r-3xl lg:rounded-bl-none",
+                )}
+              >
+                <p className="display text-7xl leading-none">{index + 1}</p>
+                <div>
+                  <h3 className="display text-3xl">{title}</h3>
+                  <p className="mt-3 max-w-sm text-lg leading-snug text-pretty">{body}</p>
                 </div>
-              ))}
+                {index < 2 && (
+                  <>
+                    <span aria-hidden className="perf-x absolute inset-x-5 -bottom-px lg:hidden" />
+                    <span aria-hidden className="perf-y absolute inset-y-5 -right-px hidden lg:block" />
+                  </>
+                )}
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="mx-auto mt-28 grid max-w-[90rem] gap-x-16 gap-y-10 px-5 sm:px-8 lg:mt-36 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:px-12">
+          <div>
+            <h2 className="display text-4xl text-balance sm:text-5xl lg:text-6xl">What actually happens when the network drops</h2>
+          </div>
+          <ol className="grid">
+            {OFFLINE.map(({ title, body }, index) => (
+              <li key={title} className="relative grid grid-cols-[2.5rem_1fr] gap-x-4 pb-10 last:pb-0">
+                <span
+                  className={cn(
+                    "z-10 grid size-10 place-items-center rounded-full font-bold text-ink",
+                    index === 1 ? "bg-warning [[data-theme=light]_&]:text-white" : "bg-go",
+                  )}
+                >
+                  {index + 1}
+                </span>
+                {index < 2 && <span aria-hidden className="absolute top-10 bottom-0 left-5 w-px -translate-x-1/2 bg-line-strong" />}
+                <div className="pt-1.5">
+                  <h3 className="text-xl font-bold">{title}</h3>
+                  <p className="mt-1.5 max-w-xl text-lg leading-relaxed text-pretty text-muted">{body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="mx-auto mt-28 max-w-[90rem] px-5 sm:px-8 lg:mt-36 lg:px-12">
+          <h2 className="display text-4xl sm:text-5xl lg:text-6xl">Also in the box</h2>
+          <dl className="mt-8 grid border-t border-line md:grid-cols-2 md:gap-x-16">
+            {DETAILS.map(([title, body]) => (
+              <div key={title} className="grid gap-1 border-b border-line py-5">
+                <dt className="text-lg font-bold">{title}</dt>
+                <dd className="text-pretty text-muted">{body}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <section className="mx-auto mt-28 max-w-[90rem] px-5 sm:px-8 lg:mt-36 lg:px-12">
+          <div className="paper-shadow">
+            <div className="flex flex-wrap items-end justify-between gap-8 rounded-3xl bg-accent p-8 text-ink lg:p-12">
+              <h2 className="display max-w-3xl text-[clamp(2.5rem,5vw,4.75rem)] leading-[0.98] text-balance">
+                See it with 46 guests at the door.
+              </h2>
+              <form action={startDemoAction}>
+                <SubmitButton size="lg" pendingText="Setting up demo…" className="bg-ink text-white hover:brightness-100 hover:bg-[#222]">
+                  Try the live demo
+                </SubmitButton>
+              </form>
             </div>
           </div>
         </section>
       </main>
 
-      <footer className="mx-auto flex max-w-6xl justify-between px-4 py-8 text-sm text-muted sm:px-6">
-        <span>EventPass</span>
-        <Link href="/sign-in" className="hover:text-fg">
+      <footer className="mx-auto mt-16 flex max-w-[90rem] items-center justify-between gap-4 px-5 pb-10 text-muted sm:px-8 lg:px-12">
+        <Logo className="text-lg" />
+        <Link href="/sign-in" className="text-sm font-medium underline-offset-4 hover:text-fg hover:underline">
           Organizer sign in
         </Link>
       </footer>
-    </div>
-  );
-}
-
-function ScanPreview() {
-  return (
-    <div className="mx-auto w-full max-w-sm" aria-hidden>
-      <Card className="overflow-hidden shadow-xl shadow-accent/10">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3 text-sm">
-          <span className="font-semibold">Door · Main entrance</span>
-          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning">
-            Offline · 3 queued
-          </span>
-        </div>
-        <div className="grid gap-3 p-4">
-          <div className="rounded-xl bg-success px-5 py-6 text-center text-white">
-            <p className="text-sm font-semibold opacity-90">Admitted</p>
-            <p className="mt-1 text-2xl font-bold">Maya Okafor</p>
-            <p className="mt-1 font-mono text-xs opacity-80">7KQ2-M9XD-4TRH-PB3N</p>
-          </div>
-          <div className="rounded-xl bg-danger-soft px-5 py-4 text-center text-danger">
-            <p className="text-sm font-semibold">Already checked in at 7:42 PM</p>
-            <p className="font-bold">Leo Novak</p>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-center text-sm">
-            {[
-              ["31", "In"],
-              ["13", "Expected"],
-              ["80", "Capacity"],
-            ].map(([n, label]) => (
-              <div key={label} className="rounded-lg bg-subtle py-2">
-                <p className="text-lg font-bold">{n}</p>
-                <p className="text-xs text-muted">{label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Card>
     </div>
   );
 }

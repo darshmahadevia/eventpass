@@ -7,9 +7,5 @@ export const metadata = { title: "Registration form" };
 export default async function FormPage({ params }: PageProps<"/events/[eventId]/form">) {
   const { eventId } = await params;
   const { event } = await getOwnedEvent(eventId);
-  return (
-    <div className="mx-auto max-w-2xl">
-      <FormBuilder saveForm={saveFormAction.bind(null, event.id)} initial={event.form} />
-    </div>
-  );
+  return <FormBuilder saveForm={saveFormAction.bind(null, event.id)} initial={event.form} />;
 }

@@ -1,9 +1,9 @@
-import { IconExternalLink, IconScan } from "@tabler/icons-react";
-import Link from "next/link";
+import { IconArrowUpRight, IconScan } from "@tabler/icons-react";
 import { Tabs } from "@/components/client";
 import { StatusBadge } from "@/components/status-badge";
-import { ButtonLink } from "@/components/ui";
+import { BackLink, ButtonLink } from "@/components/ui";
 import { getOwnedEvent } from "@/lib/events";
+import { stockFor } from "@/lib/stock";
 import { formatEventRange } from "@/lib/time";
 
 export default async function EventLayout({ children, params }: LayoutProps<"/events/[eventId]">) {
@@ -12,31 +12,31 @@ export default async function EventLayout({ children, params }: LayoutProps<"/ev
   const base = `/events/${event.id}`;
 
   return (
-    <div>
-      <Link href="/events" className="text-sm text-muted hover:text-fg">
-        ← Events
-      </Link>
-      <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">{event.title}</h1>
+    <div data-stock={stockFor(event.id)}>
+      <BackLink href="/events">Events</BackLink>
+      <div className="mt-4 flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
+        <div className="min-w-0 flex-1 basis-80">
+          <div className="flex items-center gap-2.5">
+            <span aria-hidden className="h-3 w-5 rounded-[3px] bg-accent" title="Ticket colour" />
             <StatusBadge event={event} />
           </div>
-          <p className="mt-1 text-sm text-muted">
+          <h1 className="display mt-3 text-4xl text-balance break-words sm:text-5xl">{event.title}</h1>
+          <p className="mt-2 text-muted">
             {formatEventRange(event.startsAt, event.endsAt, event.timeZone)}
-            {event.location && ` · ${event.location}`}
+            {event.location && <span className="text-faint"> · </span>}
+            {event.location}
           </p>
         </div>
-        <div className="flex gap-2">
-          <ButtonLink href={`/e/${event.slug}`} variant="secondary" target="_blank">
-            <IconExternalLink className="size-4" /> Public page
+        <div className="flex w-full gap-2 sm:w-auto">
+          <ButtonLink href={`/e/${event.slug}`} variant="secondary" target="_blank" className="flex-1 sm:flex-none">
+            Public page <IconArrowUpRight aria-hidden className="size-4" />
           </ButtonLink>
-          <ButtonLink href={`/scan/${event.id}`}>
-            <IconScan className="size-4" /> Scanner
+          <ButtonLink href={`/scan/${event.id}`} className="flex-1 sm:flex-none">
+            <IconScan aria-hidden className="size-4" /> Scanner
           </ButtonLink>
         </div>
       </div>
-      <div className="mt-6 mb-8 border-b border-border">
+      <div className="mt-8 mb-10 border-b border-line">
         <Tabs
           tabs={[
             { href: base, label: "Overview" },

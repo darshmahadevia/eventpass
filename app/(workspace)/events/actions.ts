@@ -157,7 +157,7 @@ export async function addStaffAction(eventId: string, _: FormState, form: FormDa
     });
   }
   refresh(eventId);
-  return { ok: true };
+  return { ok: true, values: { email } };
 }
 
 export async function removeStaffAction(eventId: string, email: string) {
@@ -181,7 +181,7 @@ export async function addGuestAction(eventId: string, _: FormState, form: FormDa
   }
   if (!isDemoEmail(user.email)) await sendTicketEmail(event, result.registration);
   refresh(eventId);
-  return { ok: true };
+  return { ok: true, values: { email: email.data } };
 }
 
 export async function cancelRegistrationAction(eventId: string, registrationId: string) {

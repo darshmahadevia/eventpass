@@ -57,6 +57,33 @@ export function formatTime(date: Date, timeZone: string) {
   return new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", minute: "2-digit" }).format(date);
 }
 
+/** Pieces of a start time for ticket stubs, where the date is set large. */
+export function dateParts(date: Date, timeZone: string) {
+  const part = (options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat("en-US", { timeZone, ...options }).format(date);
+  return {
+    weekday: part({ weekday: "short" }),
+    month: part({ month: "short" }),
+    day: part({ day: "numeric" }),
+    year: part({ year: "numeric" }),
+  };
+}
+
+/** "7:00 – 10:00 PM EST", or just the date range when an event spans days. */
+export function formatTimeRange(start: Date, end: Date, timeZone: string) {
+  const sameDay = utcToZoned(start, timeZone).slice(0, 10) === utcToZoned(end, timeZone).slice(0, 10);
+  const range = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    ...(sameDay ? {} : { month: "short", day: "numeric" }),
+    hour: "numeric",
+    minute: "2-digit",
+  }).formatRange(start, end);
+  const zone = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "short" })
+    .formatToParts(start)
+    .find((p) => p.type === "timeZoneName")?.value;
+  return zone ? `${range} ${zone}` : range;
+}
+
 export function isValidTimeZone(timeZone: string) {
   try {
     new Intl.DateTimeFormat("en-US", { timeZone });

@@ -1,14 +1,16 @@
-import { IconCalendarEvent, IconMapPin, IconUsers } from "@tabler/icons-react";
 import { eq } from "drizzle-orm";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { Card, Logo, Notice } from "@/components/ui";
+import { ThemeSwitcher } from "@/components/theme";
+import { Logo, Notice } from "@/components/ui";
 import { getUser } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
 import { closedReason, countRegistered } from "@/lib/events";
-import { formatEventRange } from "@/lib/time";
+import { posterSize, stockFor } from "@/lib/stock";
+import { dateParts, formatTimeRange } from "@/lib/time";
+import { cn } from "@/lib/utils";
 import { registerAction } from "./actions";
 import { RegistrationForm } from "./registration-form";
 
@@ -21,10 +23,10 @@ export async function generateMetadata({ params }: PageProps<"/e/[slug]">): Prom
 }
 
 const CLOSED_COPY = {
-  draft: "This is a draft preview. Registration opens when you publish the event.",
+  draft: "This is a preview only you can see. Registration opens when you publish the event.",
   cancelled: "This event has been cancelled.",
   ended: "This event has ended.",
-  full: "This event is full. Registration is closed.",
+  full: "This event is full, so registration is closed.",
 } as const;
 
 export default async function PublicEventPage({ params }: PageProps<"/e/[slug]">) {
@@ -35,48 +37,79 @@ export default async function PublicEventPage({ params }: PageProps<"/e/[slug]">
   const registered = await countRegistered(event.id);
   const reason = closedReason(event, registered);
   const spotsLeft = event.capacity === null ? null : Math.max(0, event.capacity - registered);
+  const date = dateParts(event.startsAt, event.timeZone);
 
   return (
-    <div className="min-h-dvh">
-      <header className="mx-auto max-w-5xl px-4 py-5 sm:px-6">
-        <Link href="/">
+    <div data-stock={stockFor(event.id)} className="grid min-h-dvh lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      {/* The poster: the left half of the page is the ticket itself. */}
+      <section className="notch-b relative flex flex-col bg-accent px-5 pt-5 pb-8 text-ink [--n:15px] sm:px-8 lg:sticky lg:top-0 lg:h-dvh lg:p-10 lg:[mask:none]">
+        <Link href="/" className="w-fit rounded-md [--accent:#000] [--bg:var(--stock)] [--fg:#000]">
           <Logo />
         </Link>
-      </header>
-      <main className="mx-auto grid max-w-5xl grid-cols-1 gap-8 px-4 pb-16 sm:px-6 lg:grid-cols-[1fr_24rem]">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">{event.title}</h1>
-          <ul className="mt-6 grid gap-3 text-sm">
-            <li className="flex gap-3">
-              <IconCalendarEvent className="size-5 shrink-0 text-accent" />
-              {formatEventRange(event.startsAt, event.endsAt, event.timeZone)}
-            </li>
+
+        <div className="mt-14 lg:mt-auto">
+          <p className="display text-2xl sm:text-3xl">
+            {date.weekday}, {date.month} {date.day}
+          </p>
+          <h1 className={cn("display mt-3 text-balance break-words", posterSize(event.title))}>{event.title}</h1>
+          <dl className="mt-7 grid gap-x-10 gap-y-3 text-[0.9375rem] leading-snug sm:grid-flow-col sm:auto-cols-max">
+            <div>
+              <dt className="text-sm opacity-70">Time</dt>
+              <dd className="font-semibold">{formatTimeRange(event.startsAt, event.endsAt, event.timeZone)}</dd>
+            </div>
             {event.location && (
-              <li className="flex gap-3">
-                <IconMapPin className="size-5 shrink-0 text-accent" />
-                {event.location}
-              </li>
+              <div className="min-w-0 sm:max-w-72">
+                <dt className="text-sm opacity-70">Place</dt>
+                <dd className="font-semibold">{event.location}</dd>
+              </div>
             )}
             {spotsLeft !== null && reason === null && (
-              <li className="flex gap-3">
-                <IconUsers className="size-5 shrink-0 text-accent" />
-                {spotsLeft} {spotsLeft === 1 ? "spot" : "spots"} left
-              </li>
+              <div>
+                <dt className="text-sm opacity-70">Availability</dt>
+                <dd className="font-semibold">
+                  {spotsLeft} {spotsLeft === 1 ? "spot" : "spots"} left
+                </dd>
+              </div>
             )}
-          </ul>
-          {event.description && (
-            <p className="mt-8 leading-relaxed whitespace-pre-line text-pretty">{event.description}</p>
-          )}
+          </dl>
         </div>
+        <span aria-hidden className="perf-y absolute inset-y-6 -right-px hidden lg:block" />
+        <span aria-hidden className="perf-x absolute inset-x-6 -bottom-px lg:hidden" />
+      </section>
 
-        <Card className="h-fit p-6 lg:sticky lg:top-6">
-          <h2 className="mb-5 text-lg font-bold">Register</h2>
-          {reason === null ? (
-            <RegistrationForm register={registerAction.bind(null, event.slug)} fields={event.form} />
-          ) : (
-            <Notice tone={reason === "draft" ? "accent" : "neutral"}>{CLOSED_COPY[reason]}</Notice>
+      <main className="relative px-5 py-8 sm:px-8 lg:px-14 lg:py-10">
+        <div className="mx-auto max-w-[30rem]">
+          <div className="flex justify-end">
+            <ThemeSwitcher />
+          </div>
+
+          {event.description && (
+            <p className="mt-6 text-lg leading-relaxed whitespace-pre-line text-pretty lg:mt-10">{event.description}</p>
           )}
-        </Card>
+
+          <section className={cn("mt-10", !event.description && "lg:mt-16")}>
+            <h2 className="display mb-6 text-4xl">{reason === null ? "Register" : reason === "draft" ? "Preview" : "Registration closed"}</h2>
+            {reason === "draft" && (
+              <Notice tone="accent" className="mb-6">
+                {CLOSED_COPY.draft}
+              </Notice>
+            )}
+            {reason === null || reason === "draft" ? (
+              <div className={reason === "draft" ? "pointer-events-none opacity-60" : undefined} inert={reason === "draft"}>
+                <RegistrationForm register={registerAction.bind(null, event.slug)} fields={event.form} />
+              </div>
+            ) : (
+              <Notice tone={reason === "cancelled" ? "danger" : "neutral"}>{CLOSED_COPY[reason]}</Notice>
+            )}
+          </section>
+
+          <p className="mt-12 text-sm text-faint">
+            Tickets by{" "}
+            <Link href="/" className="font-medium underline underline-offset-4 hover:text-fg">
+              EventPass
+            </Link>
+          </p>
+        </div>
       </main>
     </div>
   );

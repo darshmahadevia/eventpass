@@ -1,17 +1,23 @@
 "use client";
 
-import { Button } from "@/components/ui";
+import { IconRefresh } from "@tabler/icons-react";
+import { VoidTicket } from "@/components/void-ticket";
+import { Button, ButtonLink } from "@/components/ui";
 
 export default function ErrorPage({ reset }: { error: Error; reset: () => void }) {
   return (
-    <main className="grid min-h-[60dvh] place-items-center px-4 text-center">
-      <div>
-        <h1 className="text-2xl font-bold">Something went wrong</h1>
-        <p className="mt-2 text-muted">Please try again. If it keeps happening, reload the page.</p>
-        <Button onClick={reset} variant="secondary" className="mt-6">
-          Try again
-        </Button>
-      </div>
-    </main>
+    <VoidTicket
+      code="Oops"
+      stamp="Misprint"
+      title="Something went wrong"
+      body="That didn't load. Try again, and if it keeps happening, reload the page."
+    >
+      <Button onClick={reset}>
+        <IconRefresh aria-hidden className="size-4" /> Try again
+      </Button>
+      <ButtonLink href="/" variant="secondary">
+        Go home
+      </ButtonLink>
+    </VoidTicket>
   );
 }

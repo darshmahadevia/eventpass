@@ -1,4 +1,6 @@
+import { IconLogout } from "@tabler/icons-react";
 import Link from "next/link";
+import { ThemeSwitcher } from "@/components/theme";
 import { Button, Logo } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { isDemoEmail } from "@/lib/utils";
@@ -9,28 +11,32 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   const isDemo = isDemoEmail(user.email);
 
   return (
-    <div className="min-h-dvh">
+    <div className="flex min-h-dvh flex-col">
       {isDemo && (
-        <div className="bg-accent px-4 py-2 text-center text-sm font-medium text-accent-fg">
-          You&apos;re in a demo account. Data is temporary and is cleared after a day.
-        </div>
+        <p className="bg-accent px-4 py-2 text-center text-sm font-semibold text-balance text-ink">
+          You&apos;re in a demo account. Look around and change anything; it&apos;s all cleared after a day.
+        </p>
       )}
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Link href="/events">
+      <header className="sticky top-0 z-30 border-b border-line bg-bg/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-8">
+          <Link href="/events" className="rounded-md" aria-label="EventPass, your events">
             <Logo />
           </Link>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="hidden truncate text-muted sm:inline">{isDemo ? "Demo organizer" : user.email}</span>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="hidden max-w-56 truncate text-sm text-muted md:inline">
+              {isDemo ? "Demo organizer" : user.email}
+            </span>
+            <ThemeSwitcher />
             <form action={signOutAction}>
-              <Button variant="ghost" className="h-8 px-3">
-                Sign out
+              <Button variant="ghost" size="sm" className="px-2.5 text-muted hover:text-fg" aria-label="Sign out" title="Sign out">
+                <IconLogout aria-hidden className="size-[1.125rem]" stroke={1.9} />
+                <span className="hidden sm:inline">Sign out</span>
               </Button>
             </form>
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-8 pb-20 sm:px-8 sm:pt-10">{children}</main>
     </div>
   );
 }

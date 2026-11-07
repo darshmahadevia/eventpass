@@ -1,17 +1,22 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme inline {
   --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-atkinson-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
   --color-fg: var(--fg);
-  --color-card: var(--card);
-  --color-subtle: var(--subtle);
   --color-muted: var(--muted);
-  --color-border: var(--border);
+  --color-faint: var(--faint);
   --color-accent: var(--accent);
-  --color-accent-fg: var(--accent-fg);
+  --color-accent-text: var(--accent-text);
   --color-accent-soft: var(--accent-soft);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
@@ -19,55 +24,384 @@
   --color-warning-soft: var(--warning-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
+  --color-on-danger: var(--on-danger);
+  --color-go: #2edb76;
+  --color-stop: #ff453a;
+  --color-ink: #000;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
-:root {
-  color-scheme: light dark;
-  --bg: oklch(0.985 0.003 260);
-  --fg: oklch(0.2 0.02 265);
-  --card: oklch(1 0 0);
-  --subtle: oklch(0.96 0.005 260);
-  --muted: oklch(0.5 0.02 265);
-  --border: oklch(0.91 0.008 260);
-  --accent: oklch(0.5 0.2 275);
-  --accent-fg: oklch(0.99 0 0);
-  --accent-soft: oklch(0.95 0.03 275);
-  --success: oklch(0.52 0.14 155);
-  --success-soft: oklch(0.95 0.05 155);
-  --warning: oklch(0.58 0.14 70);
-  --warning-soft: oklch(0.96 0.06 85);
-  --danger: oklch(0.55 0.2 25);
-  --danger-soft: oklch(0.95 0.03 25);
+/* The house: pure black, or pure white. Colour only ever arrives as paper or as a signal. */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #000;
+  --surface: #0e0e0e;
+  --raised: #1a1a1a;
+  --line: #262626;
+  --line-strong: #404040;
+  --fg: #f7f7f7;
+  --muted: #a6a6a6;
+  --faint: #757575;
+  --success: #3ddc84;
+  --success-soft: #0e2a1a;
+  --warning: #ff9f0a;
+  --warning-soft: #2c1c05;
+  --danger: #ff6b61;
+  --danger-soft: #2f100e;
+  --on-danger: #000;
+  --paper-shadow: 0 0 0 transparent;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: oklch(0.17 0.01 265);
-    --fg: oklch(0.95 0.005 260);
-    --card: oklch(0.21 0.012 265);
-    --subtle: oklch(0.25 0.012 265);
-    --muted: oklch(0.7 0.015 265);
-    --border: oklch(0.3 0.015 265);
-    --accent: oklch(0.68 0.16 275);
-    --accent-fg: oklch(0.15 0.02 275);
-    --accent-soft: oklch(0.3 0.06 275);
-    --success: oklch(0.72 0.15 155);
-    --success-soft: oklch(0.3 0.06 155);
-    --warning: oklch(0.8 0.13 80);
-    --warning-soft: oklch(0.32 0.06 80);
-    --danger: oklch(0.7 0.17 25);
-    --danger-soft: oklch(0.3 0.07 25);
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #fff;
+  --surface: #f6f6f6;
+  --raised: #ebebeb;
+  --line: #e3e3e3;
+  --line-strong: #c4c4c4;
+  --fg: #000;
+  --muted: #5e5e5e;
+  --faint: #767676;
+  --success: #0a7a42;
+  --success-soft: #e0f6ea;
+  --warning: #a65800;
+  --warning-soft: #fff0da;
+  --danger: #c81e1e;
+  --danger-soft: #fde8e6;
+  --on-danger: #fff;
+  --paper-shadow: 0 18px 40px rgb(0 0 0 / 0.16);
+}
+
+/* The paper: the colours of roll-ticket stock. Ink on paper is always black. */
+:root,
+[data-stock="marigold"] {
+  --stock: #ffc933;
+  --stock-deep: #7a5600;
+}
+[data-stock="rose"] {
+  --stock: #ff9fbf;
+  --stock-deep: #ad2763;
+}
+[data-stock="mint"] {
+  --stock: #6ee7b0;
+  --stock-deep: #0a6f49;
+}
+[data-stock="sky"] {
+  --stock: #7fc8ff;
+  --stock-deep: #0b5f9e;
+}
+[data-stock="lilac"] {
+  --stock: #c3abff;
+  --stock-deep: #5e3bc4;
+}
+
+/* Re-declared wherever a stock is set, so the var() resolves against that stock. */
+:root,
+[data-stock] {
+  --accent: var(--stock);
+  --accent-text: var(--stock);
+  --accent-soft: color-mix(in srgb, var(--stock) 14%, var(--bg));
+}
+[data-theme="light"],
+[data-theme="light"] [data-stock] {
+  --accent-text: var(--stock-deep);
+  --accent-soft: color-mix(in srgb, var(--stock) 26%, var(--bg));
+}
+[data-theme="dark"] [data-stock] {
+  --accent-text: var(--stock);
+}
+
+@layer base {
+  html {
+    scrollbar-gutter: stable;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01" off;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: #000;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+
+  button:not(:disabled),
+  summary,
+  [role="button"] {
+    cursor: pointer;
   }
 }
 
-body {
-  background: var(--bg);
+/* Headlines are set like a poster: heavy, tightly tracked, tightly leaded. */
+@utility display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-variant-numeric: lining-nums;
+}
+
+/* A ticket is two pieces of paper. Each piece bites a half-circle out of the corners
+   it shares with the other, so the notches stay put at any height. */
+@utility notch-b {
+  --n: 13px;
+  mask:
+    radial-gradient(circle var(--n) at 0 100%, #0000 calc(100% - 0.5px), #000) 0 0 / 51% 100% no-repeat,
+    radial-gradient(circle var(--n) at 100% 100%, #0000 calc(100% - 0.5px), #000) 100% 0 / 51% 100% no-repeat;
+}
+@utility notch-t {
+  --n: 13px;
+  mask:
+    radial-gradient(circle var(--n) at 0 0, #0000 calc(100% - 0.5px), #000) 0 0 / 51% 100% no-repeat,
+    radial-gradient(circle var(--n) at 100% 0, #0000 calc(100% - 0.5px), #000) 100% 0 / 51% 100% no-repeat;
+}
+@utility notch-r {
+  --n: 10px;
+  mask:
+    radial-gradient(circle var(--n) at 100% 0, #0000 calc(100% - 0.5px), #000) 0 0 / 100% 51% no-repeat,
+    radial-gradient(circle var(--n) at 100% 100%, #0000 calc(100% - 0.5px), #000) 0 100% / 100% 51% no-repeat;
+}
+@utility notch-l {
+  --n: 10px;
+  mask:
+    radial-gradient(circle var(--n) at 0 0, #0000 calc(100% - 0.5px), #000) 0 0 / 100% 51% no-repeat,
+    radial-gradient(circle var(--n) at 0 100%, #0000 calc(100% - 0.5px), #000) 0 100% / 100% 51% no-repeat;
+}
+
+@utility notch-both {
+  --n: 13px;
+}
+
+/* Perforation: a row of real holes showing whatever is behind the paper. */
+@utility perf-x {
+  height: 5px;
+  background: radial-gradient(circle 2.5px, var(--perf, var(--bg)) 96%, #0000) 0 0 / 11px 5px repeat-x;
+}
+@utility perf-y {
+  width: 5px;
+  background: radial-gradient(circle 2.5px, var(--perf, var(--bg)) 96%, #0000) 0 0 / 5px 11px repeat-y;
+}
+
+@utility paper-shadow {
+  filter: drop-shadow(var(--paper-shadow));
+}
+
+/* ── Dialogs ─────────────────────────────────────────────────────────────── */
+
+dialog.sheet {
+  position: fixed;
+  inset: auto 0 0;
+  margin: 0;
+  width: 100%;
+  max-width: none;
+  max-height: 90dvh;
+  border-radius: 1.5rem 1.5rem 0 0;
+  background: var(--surface);
   color: var(--fg);
-  -webkit-font-smoothing: antialiased;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  padding: 0;
+  opacity: 0;
+  transform: translateY(1.5rem);
+  transition:
+    opacity 180ms var(--ease-out-soft),
+    transform 240ms var(--ease-out-soft),
+    overlay 240ms allow-discrete,
+    display 240ms allow-discrete;
+}
+dialog.sheet[open] {
+  opacity: 1;
+  transform: none;
+}
+@starting-style {
+  dialog.sheet[open] {
+    opacity: 0;
+    transform: translateY(1.5rem);
+  }
+}
+dialog.sheet::backdrop {
+  background: rgb(0 0 0 / 0);
+  transition:
+    background 200ms ease,
+    overlay 240ms allow-discrete,
+    display 240ms allow-discrete;
+}
+dialog.sheet[open]::backdrop {
+  background: rgb(0 0 0 / 0.7);
+}
+@starting-style {
+  dialog.sheet[open]::backdrop {
+    background: rgb(0 0 0 / 0);
+  }
+}
+@media (min-width: 40rem) {
+  dialog.sheet {
+    inset: 0;
+    margin: auto;
+    height: fit-content;
+    width: min(28rem, calc(100vw - 2rem));
+    border: 1px solid var(--line);
+    border-radius: 1.25rem;
+    transform: translateY(0.5rem) scale(0.98);
+  }
+  @starting-style {
+    dialog.sheet[open] {
+      transform: translateY(0.5rem) scale(0.98);
+    }
+  }
+}
+
+/* ── Moments ─────────────────────────────────────────────────────────────── */
+
+/* A new ticket feeds out of the printer, once. */
+@keyframes print-out {
+  from {
+    clip-path: inset(0 -2rem 100% -2rem);
+    transform: translateY(-3rem);
+  }
+  to {
+    clip-path: inset(0 -2rem -4rem -2rem);
+    transform: none;
+  }
+}
+.print-out {
+  animation: print-out 900ms var(--ease-out-soft) both;
+}
+
+@keyframes stamp {
+  from {
+    opacity: 0;
+    transform: rotate(var(--tilt, -9deg)) scale(1.7);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: rotate(var(--tilt, -9deg)) scale(1);
+  }
+}
+.stamp {
+  transform: rotate(var(--tilt, -9deg));
+  animation: stamp 260ms cubic-bezier(0.3, 0, 0.3, 1) both;
+}
+
+/* A door decision floods the screen from the middle. */
+@keyframes flood {
+  from {
+    clip-path: circle(0% at 50% 45%);
+  }
+  to {
+    clip-path: circle(150% at 50% 45%);
+  }
+}
+.flood {
+  animation: flood 240ms var(--ease-out-soft) both;
+}
+
+@keyframes drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes sweep {
+  0%,
+  100% {
+    top: 12%;
+  }
+  50% {
+    top: 88%;
+  }
+}
+.sweep {
+  animation: sweep 2.6s ease-in-out infinite;
+}
+
+@keyframes ping-soft {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+.live-dot {
+  animation: ping-soft 2s ease-out infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+.skeleton {
+  border-radius: 0.5rem;
+  background: linear-gradient(90deg, var(--surface) 25%, var(--raised) 50%, var(--surface) 75%) 0 0 / 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* Theme changes reveal the new page from the toggle; the old one stays put underneath. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after,
+  dialog.sheet,
+  dialog.sheet::backdrop {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+  .sweep {
+    display: none;
+  }
 }
 
 @media print {
+  :root,
+  [data-theme="dark"],
+  [data-theme="light"] {
+    color-scheme: light;
+    --bg: #fff;
+    --fg: #000;
+    --muted: #444;
+    --line: #ccc;
+    --paper-shadow: 0 0 0 transparent;
+  }
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
   .no-print {
     display: none !important;
+  }
+  .print-out,
+  .stamp {
+    animation: none;
   }
 }

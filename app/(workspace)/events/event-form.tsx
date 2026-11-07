@@ -38,26 +38,36 @@ export function EventForm({
   const e = state.errors ?? {};
 
   return (
-    <form action={formAction} className="grid gap-5">
-      <Field label="Event name" error={e.title}>
-        <Input name="title" defaultValue={v.title} required maxLength={120} placeholder="Spring Product Meetup" />
-      </Field>
-      <Field label="Description" hint="Shown on the public registration page.">
-        <Textarea name="description" defaultValue={v.description} rows={4} maxLength={5000} />
-      </Field>
-      <Field label="Location">
-        <Input name="location" defaultValue={v.location} maxLength={300} placeholder="Venue name and address" />
-      </Field>
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Starts" error={e.startsAt}>
-          <Input name="startsAt" type="datetime-local" defaultValue={v.startsAt} required />
+    <form action={formAction} className="grid gap-10">
+      <Group title="What and where">
+        <Field label="Event name" error={e.title}>
+          <Input
+            name="title"
+            defaultValue={v.title}
+            required
+            maxLength={120}
+            placeholder="Spring Product Meetup"
+            aria-invalid={!!e.title}
+          />
         </Field>
-        <Field label="Ends" error={e.endsAt}>
-          <Input name="endsAt" type="datetime-local" defaultValue={v.endsAt} required />
+        <Field label="Description" hint="Shown on the registration page. Line breaks are kept.">
+          <Textarea name="description" defaultValue={v.description} rows={5} maxLength={5000} />
         </Field>
-      </div>
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Time zone" error={e.timeZone}>
+        <Field label="Location">
+          <Input name="location" defaultValue={v.location} maxLength={300} placeholder="Venue name and address" />
+        </Field>
+      </Group>
+
+      <Group title="When">
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field label="Starts" error={e.startsAt}>
+            <Input name="startsAt" type="datetime-local" defaultValue={v.startsAt} required aria-invalid={!!e.startsAt} />
+          </Field>
+          <Field label="Ends" error={e.endsAt}>
+            <Input name="endsAt" type="datetime-local" defaultValue={v.endsAt} required aria-invalid={!!e.endsAt} />
+          </Field>
+        </div>
+        <Field label="Time zone" hint="Times on tickets and emails are shown in this zone." error={e.timeZone}>
           <Select key={browserZone} name="timeZone" defaultValue={v.timeZone ?? browserZone}>
             {TIME_ZONES.map((zone) => (
               <option key={zone} value={zone}>
@@ -66,15 +76,41 @@ export function EventForm({
             ))}
           </Select>
         </Field>
-        <Field label="Capacity" hint="Leave empty for no limit." error={e.capacity}>
-          <Input name="capacity" type="number" min={1} defaultValue={v.capacity} placeholder="Unlimited" />
+      </Group>
+
+      <Group title="Capacity">
+        <Field label="Spots" hint="Registration closes when this many people sign up. Leave empty for no limit." error={e.capacity}>
+          <Input
+            name="capacity"
+            type="number"
+            min={1}
+            inputMode="numeric"
+            defaultValue={v.capacity}
+            placeholder="No limit"
+            className="sm:max-w-48"
+            aria-invalid={!!e.capacity}
+          />
         </Field>
-      </div>
-      {state.error && <Notice tone="danger">{state.error}</Notice>}
-      {state.ok && <Notice tone="success">Saved.</Notice>}
-      <div>
-        <SubmitButton pendingText="Saving…">{submitLabel}</SubmitButton>
+      </Group>
+
+      <div className="grid gap-4 border-t border-line pt-6">
+        {state.error && <Notice tone="danger">{state.error}</Notice>}
+        {state.ok && <Notice tone="success">Changes saved.</Notice>}
+        <div>
+          <SubmitButton size="lg" pendingText="Saving…">
+            {submitLabel}
+          </SubmitButton>
+        </div>
       </div>
     </form>
+  );
+}
+
+function Group({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="grid gap-5">
+      <legend className="mb-5 text-xs font-bold tracking-[0.08em] text-faint uppercase">{title}</legend>
+      {children}
+    </fieldset>
   );
 }

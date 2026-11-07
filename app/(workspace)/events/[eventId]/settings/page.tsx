@@ -1,6 +1,6 @@
 import { asc, eq } from "drizzle-orm";
 import { SubmitButton } from "@/components/submit-button";
-import { Card } from "@/components/ui";
+import { Avatar, Card } from "@/components/ui";
 import { db, schema } from "@/lib/db";
 import { getOwnedEvent } from "@/lib/events";
 import { utcToZoned } from "@/lib/time";
@@ -19,68 +19,81 @@ export default async function SettingsPage({ params }: PageProps<"/events/[event
   });
 
   return (
-    <div className="mx-auto grid max-w-2xl grid-cols-1 gap-10">
-      <Section title="Event details">
-        <Card className="p-6">
-          <EventForm
-            action={saveEventAction.bind(null, event.id)}
-            submitLabel="Save changes"
-            initial={{
-              title: event.title,
-              description: event.description,
-              location: event.location,
-              startsAt: utcToZoned(event.startsAt, event.timeZone),
-              endsAt: utcToZoned(event.endsAt, event.timeZone),
-              timeZone: event.timeZone,
-              capacity: event.capacity?.toString() ?? "",
-            }}
-          />
-        </Card>
+    <div className="grid gap-16">
+      <Section title="Event details" description="Changes show up on the registration page and on tickets right away.">
+        <EventForm
+          action={saveEventAction.bind(null, event.id)}
+          submitLabel="Save changes"
+          initial={{
+            title: event.title,
+            description: event.description,
+            location: event.location,
+            startsAt: utcToZoned(event.startsAt, event.timeZone),
+            endsAt: utcToZoned(event.endsAt, event.timeZone),
+            timeZone: event.timeZone,
+            capacity: event.capacity?.toString() ?? "",
+          }}
+        />
       </Section>
 
       <Section
         title="Door team"
-        description="People you add can sign in with their email and open the scanner for this event. They can't see or change anything else."
+        description="Volunteers sign in with their email and see only the scanner for this event."
       >
-        <Card className="divide-y divide-border">
-          {staff.map((member) => (
-            <div key={member.email} className="flex items-center justify-between gap-3 px-5 py-3">
-              <span className="truncate text-sm">{member.email}</span>
-              <form action={removeStaffAction.bind(null, event.id, member.email)}>
-                <SubmitButton variant="ghost" className="h-8 px-3 text-muted">
-                  Remove
-                </SubmitButton>
-              </form>
-            </div>
-          ))}
-          <div className="p-5">
+        <Card className="overflow-hidden">
+          {staff.length > 0 && (
+            <ul className="divide-y divide-line border-b border-line">
+              {staff.map((member) => (
+                <li key={member.email} className="flex items-center gap-3 py-3 pr-3 pl-4">
+                  <Avatar name={member.email} />
+                  <span className="min-w-0 flex-1 truncate">{member.email}</span>
+                  <form action={removeStaffAction.bind(null, event.id, member.email)}>
+                    <SubmitButton variant="ghost" size="sm" className="text-muted hover:text-danger" pendingText="Removing…">
+                      Remove
+                    </SubmitButton>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="p-4">
             <AddStaffForm addStaff={addStaffAction.bind(null, event.id)} />
           </div>
         </Card>
       </Section>
 
-      <Section title="Danger zone">
-        <Card className="divide-y divide-border">
+      <Section title="Danger zone" description="These can't be undone.">
+        <div className="divide-y divide-danger/25 rounded-2xl border border-danger/35">
           {event.status !== "cancelled" && (
             <DangerRow
               title="Cancel event"
-              body="Closes registration, stops tickets from admitting guests, and emails every registered guest."
+              body="Closes registration, stops every ticket from admitting anyone, and emails each registered guest."
             >
               <form action={setStatusAction.bind(null, event.id, "cancelled")}>
-                <SubmitButton variant="danger" confirm="Cancel this event and notify every guest? This can't be undone.">
+                <SubmitButton
+                  variant="danger"
+                  confirmTitle="Cancel this event?"
+                  confirm="Every registered guest gets an email, and their tickets stop working. This can't be undone."
+                  confirmLabel="Cancel event"
+                >
                   Cancel event
                 </SubmitButton>
               </form>
             </DangerRow>
           )}
-          <DangerRow title="Delete event" body="Permanently removes the event, its guest list, and all check-ins.">
+          <DangerRow title="Delete event" body="Permanently removes the event, its guest list, and every check-in.">
             <form action={deleteEventAction.bind(null, event.id)}>
-              <SubmitButton variant="danger" confirm="Delete this event and its entire guest list? This can't be undone.">
+              <SubmitButton
+                variant="danger"
+                confirmTitle="Delete this event?"
+                confirm="The event, its guest list, and all check-ins are removed for good."
+                confirmLabel="Delete event"
+              >
                 Delete event
               </SubmitButton>
             </form>
           </DangerRow>
-        </Card>
+        </div>
       </Section>
     </div>
   );
@@ -88,10 +101,12 @@ export default async function SettingsPage({ params }: PageProps<"/events/[event
 
 function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
-    <section>
-      <h2 className="text-lg font-bold">{title}</h2>
-      {description && <p className="mt-1 text-sm text-muted">{description}</p>}
-      <div className="mt-4">{children}</div>
+    <section className="grid gap-x-16 gap-y-5 lg:grid-cols-[16rem_minmax(0,1fr)]">
+      <div>
+        <h2 className="text-lg font-bold">{title}</h2>
+        {description && <p className="mt-1 text-sm text-pretty text-muted">{description}</p>}
+      </div>
+      <div className="max-w-2xl">{children}</div>
     </section>
   );
 }
@@ -101,7 +116,7 @@ function DangerRow({ title, body, children }: { title: string; body: string; chi
     <div className="flex flex-wrap items-center justify-between gap-4 p-5">
       <div className="max-w-sm">
         <p className="font-semibold">{title}</p>
-        <p className="text-sm text-muted">{body}</p>
+        <p className="mt-0.5 text-sm text-muted">{body}</p>
       </div>
       {children}
     </div>

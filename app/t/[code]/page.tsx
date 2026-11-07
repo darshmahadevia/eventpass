@@ -1,13 +1,16 @@
-import { IconCalendarPlus, IconCircleCheck, IconMapPin } from "@tabler/icons-react";
+import { IconCalendarPlus, IconCircleCheck } from "@tabler/icons-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import { PrintButton } from "@/components/client";
 import { SubmitButton } from "@/components/submit-button";
-import { ButtonLink, Card, Logo, Notice } from "@/components/ui";
-import { formatEventRange, formatTime } from "@/lib/time";
+import { ThemeSwitcher } from "@/components/theme";
+import { Stamp } from "@/components/ticket";
+import { ButtonLink, Logo } from "@/components/ui";
+import { stockFor } from "@/lib/stock";
+import { dateParts, formatTime, formatTimeRange } from "@/lib/time";
 import { getTicket } from "@/lib/tickets";
-import { formatTicketCode } from "@/lib/utils";
+import { cn, formatTicketCode } from "@/lib/utils";
 import { cancelTicketAction } from "./actions";
 
 export const metadata = { title: "Your ticket", robots: { index: false } };
@@ -22,97 +25,128 @@ export default async function TicketPage({ params, searchParams }: PageProps<"/t
   const eventCancelled = event.status === "cancelled";
   const ended = event.endsAt < new Date();
   const valid = !cancelled && !eventCancelled;
-  const qr = valid
-    ? await QRCode.toString(registration.ticketCode, { type: "svg", margin: 0, errorCorrectionLevel: "M" })
-    : null;
+  const checkedIn = valid && registration.checkedInAt;
+  const qr = await QRCode.toString(registration.ticketCode, { type: "svg", margin: 0, errorCorrectionLevel: "M" });
+  const date = dateParts(event.startsAt, event.timeZone);
 
   return (
-    <div className="min-h-dvh px-4 py-8">
-      <div className="mx-auto max-w-sm">
-        <Link href="/" className="no-print mb-6 flex justify-center">
+    <div data-stock={stockFor(event.id)} className="flex min-h-dvh flex-col px-4 pt-5 pb-10">
+      <header className="no-print mx-auto flex w-full max-w-md items-center justify-between">
+        <Link href="/" className="rounded-md">
           <Logo />
         </Link>
+        <ThemeSwitcher />
+      </header>
 
+      <main className="mx-auto mt-8 w-full max-w-md flex-1">
         {isNew && valid && (
-          <div className="no-print mb-4">
-            <Notice tone="success">You&apos;re registered! We also emailed this ticket to {registration.email}.</Notice>
+          <div className="no-print mb-6 text-center">
+            <h1 className="display text-5xl">You&apos;re in.</h1>
+            <p className="mt-2 text-muted">
+              We also sent this ticket to <span className="font-semibold text-fg">{registration.email}</span>.
+            </p>
           </div>
         )}
 
-        <Card className="overflow-hidden">
-          <div className="bg-accent px-6 py-5 text-accent-fg">
-            <p className="text-sm font-medium opacity-80">Ticket</p>
-            <h1 className="text-xl font-bold text-balance">{event.title}</h1>
-          </div>
-          <div className="grid gap-5 p-6">
-            <div>
-              <p className="text-sm text-muted">Guest</p>
-              <p className="text-lg font-semibold">{registration.name}</p>
+        {/* The ticket is paper in both themes: stock on top, white behind the QR so it always scans. */}
+        <article className={cn("paper-shadow relative", isNew && valid && "print-out", !valid && "grayscale")}>
+          <div className="notch-b relative rounded-t-3xl bg-accent px-6 pt-6 pb-7 text-ink">
+            <div className="flex items-baseline justify-between gap-4 text-sm font-semibold">
+              <span>Admit one</span>
+              <span>
+                {date.weekday}, {date.month} {date.day}
+              </span>
             </div>
-
-            {qr ? (
-              <div className="grid justify-items-center gap-3 rounded-xl border border-dashed border-border bg-white p-6">
-                <div
-                  className="size-52 [&_svg]:size-full"
-                  role="img"
-                  aria-label="Ticket QR code"
-                  dangerouslySetInnerHTML={{ __html: qr }}
-                />
-                <p className="font-mono text-sm tracking-wider text-neutral-700">{formatTicketCode(registration.ticketCode)}</p>
+            <h1 className={cn("display mt-5 text-balance", event.title.length > 40 ? "text-3xl" : "text-4xl")}>
+              {isNew && valid ? <span className="sr-only">Ticket for </span> : null}
+              {event.title}
+            </h1>
+            <dl className="mt-6 grid grid-cols-2 gap-x-5 gap-y-4 text-[0.9375rem] leading-snug">
+              <div className="col-span-2">
+                <dt className="text-sm opacity-70">Guest</dt>
+                <dd className="font-semibold">{registration.name}</dd>
               </div>
-            ) : (
-              <Notice tone="danger">
-                {eventCancelled ? "This event has been cancelled." : "This registration was cancelled."} The ticket
-                is no longer valid.
-              </Notice>
-            )}
-
-            {valid && registration.checkedInAt && (
-              <Notice tone="success">
-                <span className="flex items-center gap-2">
-                  <IconCircleCheck className="size-4" /> Checked in at {formatTime(registration.checkedInAt, event.timeZone)}
-                </span>
-              </Notice>
-            )}
-
-            <div className="grid gap-2 text-sm">
-              <p className="font-medium">{formatEventRange(event.startsAt, event.endsAt, event.timeZone)}</p>
+              <div className={event.location ? undefined : "col-span-2"}>
+                <dt className="text-sm opacity-70">Time</dt>
+                <dd className="font-semibold">{formatTimeRange(event.startsAt, event.endsAt, event.timeZone)}</dd>
+              </div>
               {event.location && (
-                <p className="flex gap-2 text-muted">
-                  <IconMapPin className="size-4 shrink-0" /> {event.location}
-                </p>
+                <div>
+                  <dt className="text-sm opacity-70">Place</dt>
+                  <dd className="font-semibold break-words">{event.location}</dd>
+                </div>
               )}
-            </div>
+            </dl>
+            <span aria-hidden className="perf-x absolute inset-x-5 -bottom-px" />
           </div>
-        </Card>
+
+          <div className="notch-t relative grid justify-items-center rounded-b-3xl bg-white px-6 pt-7 pb-6 text-ink">
+            <div
+              className={cn("size-56 [&_svg]:size-full", !valid && "opacity-25")}
+              role="img"
+              aria-label={valid ? "Ticket QR code" : "Void ticket QR code"}
+              dangerouslySetInnerHTML={{ __html: qr }}
+            />
+            <p className="mt-4 font-mono text-[0.9375rem] font-medium tracking-wide">
+              {formatTicketCode(registration.ticketCode)}
+            </p>
+            {!valid && (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/85">
+                <Stamp tone="void">{eventCancelled ? "Event cancelled" : "Cancelled"}</Stamp>
+              </div>
+            )}
+            {checkedIn && (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/85">
+                <Stamp tone="go">Checked in {formatTime(registration.checkedInAt!, event.timeZone)}</Stamp>
+              </div>
+            )}
+          </div>
+        </article>
+
+        {!valid && (
+          <p className="no-print mt-5 text-center text-muted">
+            {eventCancelled ? "The organizer cancelled this event." : "You cancelled this registration."} This ticket
+            won&apos;t admit anyone.
+          </p>
+        )}
+        {valid && !ended && !checkedIn && (
+          <p className="no-print mt-5 flex items-center justify-center gap-2 text-center text-sm text-muted">
+            <IconCircleCheck aria-hidden className="size-4 text-success" />
+            Show this at the door. It works on screen or on paper.
+          </p>
+        )}
 
         {valid && !ended && (
-          <div className="no-print mt-4 grid gap-3">
+          <div className="no-print mt-5 grid gap-3">
             <div className="grid grid-cols-2 gap-2">
               <ButtonLink href={`/t/${registration.ticketCode}/calendar`} variant="secondary" prefetch={false}>
-                <IconCalendarPlus className="size-4" /> Calendar
+                <IconCalendarPlus className="size-4" /> Add to calendar
               </ButtonLink>
               <PrintButton />
             </div>
-            {!registration.checkedInAt && (
-              <form action={cancelTicketAction.bind(null, registration.ticketCode)} className="text-center">
-                <SubmitButton
-                  variant="ghost"
-                  className="text-muted"
-                  confirm="Cancel your registration? Your ticket will stop working and your spot goes to someone else."
-                >
-                  Can&apos;t make it? Cancel registration
-                </SubmitButton>
-              </form>
-            )}
           </div>
         )}
-        <p className="no-print mt-6 text-center">
-          <Link href={`/e/${event.slug}`} className="text-sm text-muted hover:text-fg">
-            Event page
+
+        <div className="no-print mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-sm">
+          <Link href={`/e/${event.slug}`} className="font-medium text-muted underline-offset-4 hover:text-fg hover:underline">
+            Event details
           </Link>
-        </p>
-      </div>
+          {valid && !ended && !registration.checkedInAt && (
+            <form action={cancelTicketAction.bind(null, registration.ticketCode)}>
+              <SubmitButton
+                variant="ghost"
+                size="sm"
+                className="px-2 font-medium text-muted hover:bg-transparent hover:text-danger"
+                confirmTitle="Cancel your registration?"
+                confirm="Your ticket stops working and your spot goes to someone else."
+                confirmLabel="Cancel registration"
+              >
+                Can&apos;t make it?
+              </SubmitButton>
+            </form>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
